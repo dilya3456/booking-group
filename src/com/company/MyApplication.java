@@ -2,6 +2,8 @@ package com.company;
 
 import com.company.controllers.BookingController;
 import com.company.controllers.CancellationController;
+import com.company.controllers.SearchController;
+import com.company.controllers.interfaces.ISearchController;
 import com.company.controllers.interfaces.IUserController;
 
 import java.util.InputMismatchException;
@@ -11,24 +13,26 @@ public class MyApplication {
     private final IUserController userController;
     private final BookingController bookingController;
     private final CancellationController cancellationController;
+    private final ISearchController searchController;
 
     private final Scanner scanner = new Scanner(System.in);
 
     // ✅ старый конструктор оставим (чтобы ничего не ломалось)
     public MyApplication(IUserController userController) {
-        this(userController, null, null);
+        this(userController, null, null, null);
     }
 
     // ✅ users + cancellation (твой текущий вариант)
     public MyApplication(IUserController userController, CancellationController cancellationController) {
-        this(userController, null, cancellationController);
+        this(userController, null, cancellationController, null);
     }
 
     // ✅ главный конструктор: users + booking + cancellation
-    public MyApplication(IUserController userController, BookingController bookingController, CancellationController cancellationController) {
+    public MyApplication(IUserController userController, BookingController bookingController, CancellationController cancellationController, ISearchController searchController) {
         this.userController = userController;
         this.bookingController = bookingController;
         this.cancellationController = cancellationController;
+        this.searchController = searchController;
     }
 
     private void mainMenu() {
@@ -48,6 +52,10 @@ public class MyApplication {
         System.out.println("8. View booking details");
 
         System.out.println("9. Cancel booking (refund policy)");
+
+        System.out.println("10. Search flights");
+        System.out.println("11. Search hotels");
+
         System.out.println("0. Exit");
 
         System.out.println();
@@ -61,20 +69,45 @@ public class MyApplication {
                 int option = scanner.nextInt();
 
                 switch (option) {
-                    case 1: getAllUsersMenu(); break;
-                    case 2: getUserByIdMenu(); break;
-                    case 3: createUserMenu(); break;
+                    case 1:
+                        getAllUsersMenu();
+                        break;
+                    case 2:
+                        getUserByIdMenu();
+                        break;
+                    case 3:
+                        createUserMenu();
+                        break;
 
-                    case 4: listPassengersMenu(); break;
-                    case 5: listFlightsMenu(); break;
-                    case 6: listHotelsMenu(); break;
+                    case 4:
+                        listPassengersMenu();
+                        break;
+                    case 5:
+                        listFlightsMenu();
+                        break;
+                    case 6:
+                        listHotelsMenu();
+                        break;
 
-                    case 7: createBookingMenu(); break;
-                    case 8: bookingDetailsMenu(); break;
+                    case 7:
+                        createBookingMenu();
+                        break;
+                    case 8:
+                        bookingDetailsMenu();
+                        break;
 
-                    case 9: cancelBookingMenu(); break;
+                    case 9:
+                        cancelBookingMenu();
+                        break;
 
-                    default: return;
+                    case 10:
+                        searchFlightsMenu();
+                        break;
+                    case 11:
+                        searchHotelsMenu();
+                        break;
+                    default:
+                        return;
                 }
 
             } catch (InputMismatchException e) {
@@ -192,6 +225,64 @@ public class MyApplication {
         int bookingId = scanner.nextInt();
 
         String response = cancellationController.cancel(bookingId);
+        System.out.println(response);
+    }
+
+    // ===== SEARCH =====
+
+    public void searchFlightsMenu() {
+        if (searchController == null) {
+            System.out.println("Search module is not connected yet.");
+            return;
+        }
+
+        System.out.println("Select FROM city:");
+        String fromCities = searchController.getFlightsFromCities();
+        System.out.println(fromCities);
+        String fromCity = scanner.next();
+
+        System.out.println("Select TO city:");
+        String toCities = searchController.getFlightsToCities();
+        System.out.println(toCities);
+        String toCity = scanner.next();
+
+        System.out.println("Enter FROM date (yyyy-mm-dd | -):");
+        String fromDate = scanner.next();
+
+        System.out.println("Enter TO date (yyyy-mm-dd | -):");
+        String toDate = scanner.next();
+
+        System.out.println("Select flight type (1 - ECONOMY | 2 - BUSINESS):");
+        String type = scanner.next();
+
+        System.out.println("Select sort type (1 - CHEAPEST | 2 - EARLIEST):");
+        String sort = scanner.next();
+
+        String response = searchController.getFlightsByFilter(fromCity, toCity, fromDate, toDate, type, sort);
+        System.out.println(response);
+    }
+
+    public void searchHotelsMenu() {
+        if (searchController == null) {
+            System.out.println("Search module is not connected yet.");
+            return;
+        }
+
+        System.out.println("Select FROM city:");
+        String cities = searchController.getHotelsCities();
+        System.out.println(cities);
+        String city = scanner.next();
+
+        System.out.println("Enter min stars:");
+        int minStars = scanner.nextInt();
+
+        System.out.println("Enter max price:");
+        int maxPrice = scanner.nextInt();
+
+        System.out.println("Select sort type (1 - CHEAPEST | 2 - HIGHEST STARS):");
+        String sort = scanner.next();
+
+        String response = searchController.getHotelsByFilter(city, minStars, maxPrice, sort);
         System.out.println(response);
     }
 }
