@@ -25,7 +25,7 @@ public class Main {
     public static void main(String[] args) {
 
         // ✅ оставь somedb если так называется твоя база
-        IDB db = new PostgresDB("jdbc:postgresql://localhost:5432", "postgres", "123456", "somedb");
+        IDB db = new PostgresDB("jdbc:postgresql://localhost:5432", "postgres", "0000", "somedb");
 
         // users module
         IUserRepository userRepo = new UserRepository(db);
