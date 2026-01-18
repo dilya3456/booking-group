@@ -17,17 +17,17 @@ public class MyApplication {
 
     private final Scanner scanner = new Scanner(System.in);
 
-    // ✅ старый конструктор оставим (чтобы ничего не ломалось)
+
     public MyApplication(IUserController userController) {
         this(userController, null, null, null);
     }
 
-    // ✅ users + cancellation (твой текущий вариант)
+
     public MyApplication(IUserController userController, CancellationController cancellationController) {
         this(userController, null, cancellationController, null);
     }
 
-    // ✅ главный конструктор: users + booking + cancellation
+
     public MyApplication(IUserController userController, BookingController bookingController, CancellationController cancellationController, ISearchController searchController) {
         this.userController = userController;
         this.bookingController = bookingController;
@@ -121,7 +121,7 @@ public class MyApplication {
         }
     }
 
-    // ===== USERS =====
+
 
     public void getAllUsersMenu() {
         String response = userController.getAllUsers();
@@ -147,7 +147,7 @@ public class MyApplication {
         System.out.println(response);
     }
 
-    // ===== BOOKING =====
+
 
     private void listPassengersMenu() {
         if (bookingController == null) {
@@ -194,7 +194,7 @@ public class MyApplication {
         System.out.println("Payment method (CARD/CASH/TRANSFER):");
         String method = scanner.next();
 
-        // created_by_user_id (можешь поставить 1 или 2, если такие users есть)
+
         Integer createdByUserId = 2;
 
         String resp = bookingController.createBooking(passengerId, flightId, hotelId, nights, method, createdByUserId);
@@ -213,7 +213,7 @@ public class MyApplication {
         System.out.println(bookingController.getBookingDetails(bookingId));
     }
 
-    // ===== CANCELLATION =====
+
 
     public void cancelBookingMenu() {
         if (cancellationController == null) {
@@ -228,7 +228,7 @@ public class MyApplication {
         System.out.println(response);
     }
 
-    // ===== SEARCH =====
+
 
     public void searchFlightsMenu() {
         if (searchController == null) {
