@@ -78,7 +78,7 @@ Project follows a clean layered architecture:
 
 Team Contribution
 
-Dilnaz — Project Lead / Core Developer
+Dilnaz — Core Developer
 • Designed overall project architecture and structure
 • Created and managed database schema (PostgreSQL, pgAdmin4)
 • Implemented Booking module (transaction-based logic)
