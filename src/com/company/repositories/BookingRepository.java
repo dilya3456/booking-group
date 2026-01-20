@@ -1,22 +1,26 @@
 package com.company.repositories;
 
+import java.math.BigDecimal;
 import com.company.data.interfaces.IDB;
+import com.company.models.FlightRow;
+import com.company.models.HotelRow;
+import com.company.repositories.interfaces.IBookingRepository;
 
 import java.sql.*;
 
-public class BookingRepository {
+public class BookingRepository implements IBookingRepository {
     private final IDB db;
 
     public BookingRepository(IDB db) {
         this.db = db;
     }
 
+    @Override
     public Connection getConnection() throws SQLException {
         return db.getConnection();
     }
 
-    // ====== LISTS (для выбора в консоли) ======
-
+    @Override
     public String listFlights(int limit) throws SQLException {
         String sql = """
             SELECT f.id, f.flight_code, a.name AS airline, f.from_city, f.to_city,
@@ -26,10 +30,13 @@ public class BookingRepository {
             ORDER BY f.departure_time
             LIMIT ?
         """;
+
         StringBuilder sb = new StringBuilder();
         try (Connection con = db.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
+
             ps.setInt(1, limit);
+
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     sb.append("ID=").append(rs.getInt("id"))
@@ -37,6 +44,7 @@ public class BookingRepository {
                             .append(" | ").append(rs.getString("airline"))
                             .append(" | ").append(rs.getString("from_city")).append("->").append(rs.getString("to_city"))
                             .append(" | dep=").append(rs.getTimestamp("departure_time"))
+                            .append(" | arr=").append(rs.getTimestamp("arrival_time"))
                             .append(" | class=").append(rs.getString("class_type"))
                             .append(" | price=").append(rs.getBigDecimal("base_price"))
                             .append(" | seats=").append(rs.getInt("available_seats"))
@@ -44,20 +52,25 @@ public class BookingRepository {
                 }
             }
         }
+
         return sb.length() == 0 ? "No flights found." : sb.toString();
     }
 
+    @Override
     public String listHotels(int limit) throws SQLException {
         String sql = """
             SELECT id, name, city, stars, price_per_night, available_rooms
             FROM hotels
-            ORDER BY city, stars DESC
+            ORDER BY city, stars DESC, price_per_night
             LIMIT ?
         """;
+
         StringBuilder sb = new StringBuilder();
         try (Connection con = db.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
+
             ps.setInt(1, limit);
+
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     sb.append("ID=").append(rs.getInt("id"))
@@ -70,9 +83,11 @@ public class BookingRepository {
                 }
             }
         }
+
         return sb.length() == 0 ? "No hotels found." : sb.toString();
     }
 
+    @Override
     public String listPassengers(int limit) throws SQLException {
         String sql = """
             SELECT p.id, p.full_name, p.passport_number, p.birth_date, p.nationality,
@@ -82,27 +97,30 @@ public class BookingRepository {
             ORDER BY p.id
             LIMIT ?
         """;
+
         StringBuilder sb = new StringBuilder();
         try (Connection con = db.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
+
             ps.setInt(1, limit);
+
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     sb.append("ID=").append(rs.getInt("id"))
                             .append(" | ").append(rs.getString("full_name"))
                             .append(" | passport=").append(rs.getString("passport_number"))
-                            .append(" | ").append(rs.getDate("birth_date"))
+                            .append(" | birth=").append(rs.getDate("birth_date"))
                             .append(" | ").append(rs.getString("nationality"))
                             .append(" | discount=").append(rs.getInt("discount_percent")).append("%")
                             .append("\n");
                 }
             }
         }
+
         return sb.length() == 0 ? "No passengers found." : sb.toString();
     }
 
-    // ====== TRANSACTIONAL PART (create booking) ======
-
+    @Override
     public FlightRow getFlightForUpdate(Connection con, int flightId) throws SQLException {
         String sql = """
             SELECT id, base_price, class_type, available_seats
@@ -110,10 +128,13 @@ public class BookingRepository {
             WHERE id = ?
             FOR UPDATE
         """;
+
         try (PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, flightId);
+
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) return null;
+
                 return new FlightRow(
                         rs.getInt("id"),
                         rs.getDouble("base_price"),
@@ -124,6 +145,7 @@ public class BookingRepository {
         }
     }
 
+    @Override
     public HotelRow getHotelForUpdate(Connection con, int hotelId) throws SQLException {
         String sql = """
             SELECT id, price_per_night, stars, available_rooms
@@ -131,10 +153,13 @@ public class BookingRepository {
             WHERE id = ?
             FOR UPDATE
         """;
+
         try (PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, hotelId);
+
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) return null;
+
                 return new HotelRow(
                         rs.getInt("id"),
                         rs.getDouble("price_per_night"),
@@ -145,6 +170,7 @@ public class BookingRepository {
         }
     }
 
+    @Override
     public boolean passengerExists(Connection con, int passengerId) throws SQLException {
         String sql = "SELECT 1 FROM passengers WHERE id = ?";
         try (PreparedStatement ps = con.prepareStatement(sql)) {
@@ -155,29 +181,32 @@ public class BookingRepository {
         }
     }
 
+    @Override
     public int getPassengerDiscount(Connection con, int passengerId) throws SQLException {
         String sql = "SELECT discount_percent FROM loyalty_accounts WHERE passenger_id = ?";
         try (PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, passengerId);
             try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) return 0;
-                return rs.getInt("discount_percent");
+                return rs.next() ? rs.getInt("discount_percent") : 0;
             }
         }
     }
 
-    public int insertBooking(Connection con, int passengerId, int flightId, int hotelId, int nights, double totalPrice, Integer createdByUserId) throws SQLException {
+    @Override
+    public int insertBooking(Connection con, int passengerId, int flightId, int hotelId, int nights,
+                             double totalPrice, Integer createdByUserId) throws SQLException {
         String sql = """
             INSERT INTO bookings(passenger_id, flight_id, hotel_id, nights, total_price, status, created_by_user_id)
             VALUES (?, ?, ?, ?, ?, 'CONFIRMED', ?)
             RETURNING id
         """;
+
         try (PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, passengerId);
             ps.setInt(2, flightId);
             ps.setInt(3, hotelId);
             ps.setInt(4, nights);
-            ps.setDouble(5, totalPrice);
+            ps.setBigDecimal(5, BigDecimal.valueOf(totalPrice));
 
             if (createdByUserId == null) ps.setNull(6, Types.INTEGER);
             else ps.setInt(6, createdByUserId);
@@ -189,21 +218,30 @@ public class BookingRepository {
         }
     }
 
+    @Override
     public void insertPayment(Connection con, int bookingId, double amount, String method) throws SQLException {
         String sql = """
             INSERT INTO payments(booking_id, amount, method, status)
             VALUES (?, ?, ?, 'PAID')
+            ON CONFLICT (booking_id) DO UPDATE
+            SET amount = EXCLUDED.amount,
+                method = EXCLUDED.method,
+                status = 'PAID',
+                paid_at = CURRENT_TIMESTAMP
         """;
+
         try (PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, bookingId);
-            ps.setDouble(2, amount);
+            ps.setBigDecimal(2, BigDecimal.valueOf(amount));
             ps.setString(3, method);
             ps.executeUpdate();
         }
     }
 
+    @Override
     public void insertHistory(Connection con, int bookingId, String action, String details) throws SQLException {
         String sql = "INSERT INTO booking_history(booking_id, action, details) VALUES (?, ?, ?)";
+
         try (PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, bookingId);
             ps.setString(2, action);
@@ -212,23 +250,25 @@ public class BookingRepository {
         }
     }
 
+    @Override
     public void decreaseSeat(Connection con, int flightId) throws SQLException {
-        String sql = "UPDATE flights SET available_seats = available_seats - 1 WHERE id = ?";
+        String sql = "UPDATE flights SET available_seats = available_seats - 1 WHERE id = ? AND available_seats > 0";
         try (PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, flightId);
             ps.executeUpdate();
         }
     }
 
+    @Override
     public void decreaseRoom(Connection con, int hotelId) throws SQLException {
-        String sql = "UPDATE hotels SET available_rooms = available_rooms - 1 WHERE id = ?";
+        String sql = "UPDATE hotels SET available_rooms = available_rooms - 1 WHERE id = ? AND available_rooms > 0";
         try (PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, hotelId);
             ps.executeUpdate();
         }
     }
 
-    // ====== Read booking for console ======
+    @Override
     public String getBookingDetails(int bookingId) throws SQLException {
         String sql = """
             SELECT b.id, b.status, b.nights, b.total_price, b.created_at,
@@ -243,9 +283,12 @@ public class BookingRepository {
             LEFT JOIN payments pay ON pay.booking_id = b.id
             WHERE b.id = ?
         """;
+
         try (Connection con = db.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
+
             ps.setInt(1, bookingId);
+
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) return "Booking not found.";
 
@@ -260,35 +303,6 @@ public class BookingRepository {
                         + "\nPayment: " + rs.getString("method") + " / " + rs.getString("pay_status")
                         + "\nCreated at: " + rs.getTimestamp("created_at");
             }
-        }
-    }
-
-    // --- small DTOs ---
-    public static class FlightRow {
-        public final int id;
-        public final double basePrice;
-        public final String classType;
-        public final int seats;
-
-        public FlightRow(int id, double basePrice, String classType, int seats) {
-            this.id = id;
-            this.basePrice = basePrice;
-            this.classType = classType;
-            this.seats = seats;
-        }
-    }
-
-    public static class HotelRow {
-        public final int id;
-        public final double pricePerNight;
-        public final int stars;
-        public final int rooms;
-
-        public HotelRow(int id, double pricePerNight, int stars, int rooms) {
-            this.id = id;
-            this.pricePerNight = pricePerNight;
-            this.stars = stars;
-            this.rooms = rooms;
         }
     }
 }
