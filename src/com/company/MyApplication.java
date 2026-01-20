@@ -1,288 +1,287 @@
 package com.company;
 
-import com.company.controllers.BookingController;
-import com.company.controllers.CancellationController;
-import com.company.controllers.SearchController;
+import com.company.controllers.interfaces.IBookingController;
+import com.company.controllers.interfaces.ICancellationController;
 import com.company.controllers.interfaces.ISearchController;
 import com.company.controllers.interfaces.IUserController;
 
-import java.util.InputMismatchException;
 import java.util.Scanner;
 
 public class MyApplication {
-    private final IUserController userController;
-    private final BookingController bookingController;
-    private final CancellationController cancellationController;
-    private final ISearchController searchController;
-
     private final Scanner scanner = new Scanner(System.in);
 
+    private final IUserController userController;
+    private final IBookingController bookingController;
+    private final ICancellationController cancellationController;
+    private final ISearchController searchController;
 
-    public MyApplication(IUserController userController) {
-        this(userController, null, null, null);
-    }
-
-
-    public MyApplication(IUserController userController, CancellationController cancellationController) {
-        this(userController, null, cancellationController, null);
-    }
-
-
-    public MyApplication(IUserController userController, BookingController bookingController, CancellationController cancellationController, ISearchController searchController) {
+    public MyApplication(
+            IUserController userController,
+            IBookingController bookingController,
+            ICancellationController cancellationController,
+            ISearchController searchController
+    ) {
         this.userController = userController;
         this.bookingController = bookingController;
         this.cancellationController = cancellationController;
         this.searchController = searchController;
     }
 
-    private void mainMenu() {
-        System.out.println();
-        System.out.println("Welcome to Smart Travel Booking");
-        System.out.println("Select option:");
-
-        System.out.println("1. Get all users");
-        System.out.println("2. Get user by id");
-        System.out.println("3. Create user");
-
-        System.out.println("4. List passengers");
-        System.out.println("5. List flights");
-        System.out.println("6. List hotels");
-
-        System.out.println("7. Create booking (TRANSACTION)");
-        System.out.println("8. View booking details");
-
-        System.out.println("9. Cancel booking (refund policy)");
-
-        System.out.println("10. Search flights");
-        System.out.println("11. Search hotels");
-
-        System.out.println("0. Exit");
-
-        System.out.println();
-        System.out.print("Enter option: ");
-    }
-
     public void start() {
+        System.out.println("\n========== SMART TRAVEL SYSTEM ==========");
         while (true) {
-            mainMenu();
-            try {
-                int option = scanner.nextInt();
+            System.out.println("\n--- MAIN MENU ---");
+            System.out.println("1) Users");
+            System.out.println("2) Browse");
+            System.out.println("3) Booking wizard");
+            System.out.println("4) Search");
+            System.out.println("5) Cancellation");
+            System.out.println("0) Exit");
+            System.out.print("Choose: ");
 
-                switch (option) {
-                    case 1:
-                        getAllUsersMenu();
-                        break;
-                    case 2:
-                        getUserByIdMenu();
-                        break;
-                    case 3:
-                        createUserMenu();
-                        break;
-
-                    case 4:
-                        listPassengersMenu();
-                        break;
-                    case 5:
-                        listFlightsMenu();
-                        break;
-                    case 6:
-                        listHotelsMenu();
-                        break;
-
-                    case 7:
-                        createBookingMenu();
-                        break;
-                    case 8:
-                        bookingDetailsMenu();
-                        break;
-
-                    case 9:
-                        cancelBookingMenu();
-                        break;
-
-                    case 10:
-                        searchFlightsMenu();
-                        break;
-                    case 11:
-                        searchHotelsMenu();
-                        break;
-                    default:
-                        return;
-                }
-
-            } catch (InputMismatchException e) {
-                System.out.println("Input must be integer.");
-                scanner.nextLine();
-            } catch (Exception e) {
-                System.out.println("Error: " + e.getMessage());
+            int choice = readInt();
+            switch (choice) {
+                case 1 -> usersMenu();
+                case 2 -> browseMenu();
+                case 3 -> bookingWizard();
+                case 4 -> searchMenu();
+                case 5 -> cancellationMenu();
+                default -> { return; }
             }
-
-            System.out.println("*************************");
         }
     }
 
+    private void usersMenu() {
+        while (true) {
+            System.out.println("\n--- USERS ---");
+            System.out.println("1) Get all users");
+            System.out.println("2) Get user by id");
+            System.out.println("3) Create user");
+            System.out.println("0) Back");
+            System.out.print("Choose: ");
 
-
-    public void getAllUsersMenu() {
-        String response = userController.getAllUsers();
-        System.out.println(response);
-    }
-
-    public void getUserByIdMenu() {
-        System.out.println("Please enter id:");
-        int id = scanner.nextInt();
-        String response = userController.getUser(id);
-        System.out.println(response);
-    }
-
-    public void createUserMenu() {
-        System.out.println("Please enter name:");
-        String name = scanner.next();
-        System.out.println("Please enter surname:");
-        String surname = scanner.next();
-        System.out.println("Please enter gender (male/female):");
-        String gender = scanner.next();
-
-        String response = userController.createUser(name, surname, gender);
-        System.out.println(response);
-    }
-
-
-
-    private void listPassengersMenu() {
-        if (bookingController == null) {
-            System.out.println("Booking module is not connected yet.");
-            return;
+            int choice = readInt();
+            switch (choice) {
+                case 1 -> System.out.println(userController.getAllUsers());
+                case 2 -> {
+                    System.out.print("User id: ");
+                    int id = readInt();
+                    System.out.println(userController.getUser(id));
+                }
+                case 3 -> {
+                    System.out.print("Name: ");
+                    String name = readLine();
+                    System.out.print("Surname: ");
+                    String surname = readLine();
+                    System.out.print("Gender (male/female): ");
+                    String gender = readLine();
+                    System.out.println(userController.createUser(name, surname, gender));
+                }
+                default -> { return; }
+            }
         }
+    }
+
+    private void browseMenu() {
+        while (true) {
+            System.out.println("\n--- BROWSE ---");
+            System.out.println("1) List passengers");
+            System.out.println("2) List flights");
+            System.out.println("3) List hotels");
+            System.out.println("4) Booking details");
+            System.out.println("0) Back");
+            System.out.print("Choose: ");
+
+            int choice = readInt();
+            switch (choice) {
+                case 1 -> System.out.println(bookingController.listPassengers(50));
+                case 2 -> System.out.println(bookingController.listFlights(50));
+                case 3 -> System.out.println(bookingController.listHotels(50));
+                case 4 -> {
+                    System.out.print("Booking id: ");
+                    int bookingId = readInt();
+                    System.out.println(bookingController.getBookingDetails(bookingId));
+                }
+                default -> { return; }
+            }
+        }
+    }
+
+    private void bookingWizard() {
+        System.out.println("\n========== BOOKING WIZARD ==========\n");
+
+        System.out.println("Step 1) Choose passenger");
         System.out.println(bookingController.listPassengers(30));
-    }
+        System.out.print("Passenger id: ");
+        int passengerId = readInt();
 
-    private void listFlightsMenu() {
-        if (bookingController == null) {
-            System.out.println("Booking module is not connected yet.");
-            return;
-        }
+        System.out.println("\nStep 2) Choose flight");
         System.out.println(bookingController.listFlights(30));
-    }
+        System.out.print("Flight id: ");
+        int flightId = readInt();
 
-    private void listHotelsMenu() {
-        if (bookingController == null) {
-            System.out.println("Booking module is not connected yet.");
-            return;
-        }
+        System.out.println("\nStep 3) Choose hotel");
         System.out.println(bookingController.listHotels(30));
+        System.out.print("Hotel id: ");
+        int hotelId = readInt();
+
+        System.out.println("\nStep 4) Nights");
+        System.out.print("Nights (1..30): ");
+        int nights = readIntInRange(1, 30);
+
+        System.out.println("\nStep 5) Payment method");
+        System.out.print("Method (CARD/CASH/TRANSFER): ");
+        String method = readPaymentMethod();
+
+        System.out.println("\nStep 6) Created by user (optional)");
+        System.out.print("User id who creates booking (enter number or 0 to skip): ");
+        int createdBy = readInt();
+        Integer createdByUserId = (createdBy <= 0 ? null : createdBy);
+
+        System.out.println("\nCreating booking...");
+        String result = bookingController.createBooking(
+                passengerId, flightId, hotelId, nights, method, createdByUserId
+        );
+        System.out.println(result);
+
+        Integer bookingId = tryExtractBookingId(result);
+        if (bookingId != null) {
+            System.out.println("\n--- BOOKING DETAILS ---");
+            System.out.println(bookingController.getBookingDetails(bookingId));
+        }
     }
 
-    private void createBookingMenu() {
-        if (bookingController == null) {
-            System.out.println("Booking module is not connected yet.");
-            return;
+    private void searchMenu() {
+        while (true) {
+            System.out.println("\n--- SEARCH ---");
+            System.out.println("1) Search flights");
+            System.out.println("2) Search hotels");
+            System.out.println("0) Back");
+            System.out.print("Choose: ");
+
+            int choice = readInt();
+            switch (choice) {
+                case 1 -> searchFlightsFlow();
+                case 2 -> searchHotelsFlow();
+                default -> { return; }
+            }
         }
-
-        System.out.println("Passenger id:");
-        int passengerId = scanner.nextInt();
-
-        System.out.println("Flight id:");
-        int flightId = scanner.nextInt();
-
-        System.out.println("Hotel id:");
-        int hotelId = scanner.nextInt();
-
-        System.out.println("Nights (1..30):");
-        int nights = scanner.nextInt();
-
-        System.out.println("Payment method (CARD/CASH/TRANSFER):");
-        String method = scanner.next();
-
-
-        Integer createdByUserId = 2;
-
-        String resp = bookingController.createBooking(passengerId, flightId, hotelId, nights, method, createdByUserId);
-        System.out.println(resp);
     }
 
-    private void bookingDetailsMenu() {
-        if (bookingController == null) {
-            System.out.println("Booking module is not connected yet.");
-            return;
-        }
+    private void searchFlightsFlow() {
+        System.out.println("\n--- SEARCH FLIGHTS ---");
 
-        System.out.println("Booking id:");
-        int bookingId = scanner.nextInt();
+        System.out.println("FROM cities:");
+        System.out.println(searchController.getFlightsFromCities());
+        System.out.print("From city: ");
+        String fromCity = readLine();
 
-        System.out.println(bookingController.getBookingDetails(bookingId));
+        System.out.println("\nTO cities:");
+        System.out.println(searchController.getFlightsToCities());
+        System.out.print("To city: ");
+        String toCity = readLine();
+
+        System.out.print("\nFrom date (yyyy-mm-dd or -): ");
+        String fromDate = readLine();
+        System.out.print("To date (yyyy-mm-dd or -): ");
+        String toDate = readLine();
+
+        System.out.print("\nFlight type (1-ECONOMY, 2-BUSINESS): ");
+        String type = readLine();
+
+        System.out.print("Sort (1-CHEAPEST, 2-EARLIEST): ");
+        String sort = readLine();
+
+        System.out.println("\nRESULT:");
+        System.out.println(searchController.getFlightsByFilter(fromCity, toCity, fromDate, toDate, type, sort));
     }
 
+    private void searchHotelsFlow() {
+        System.out.println("\n--- SEARCH HOTELS ---");
 
+        System.out.println("Cities:");
+        System.out.println(searchController.getHotelsCities());
+        System.out.print("City: ");
+        String city = readLine();
 
-    public void cancelBookingMenu() {
-        if (cancellationController == null) {
-            System.out.println("Cancellation module is not connected yet.");
-            return;
-        }
+        System.out.print("Min stars: ");
+        int minStars = readIntInRange(1, 5);
 
-        System.out.println("Enter booking id to cancel:");
-        int bookingId = scanner.nextInt();
+        System.out.print("Max price per night: ");
+        int maxPrice = readInt();
 
-        String response = cancellationController.cancel(bookingId);
-        System.out.println(response);
+        System.out.print("Sort (1-CHEAPEST, 2-HIGHEST STARS): ");
+        String sort = readLine();
+
+        System.out.println("\nRESULT:");
+        System.out.println(searchController.getHotelsByFilter(city, minStars, maxPrice, sort));
     }
 
+    private void cancellationMenu() {
+        while (true) {
+            System.out.println("\n--- CANCELLATION ---");
+            System.out.println("1) Cancel booking");
+            System.out.println("0) Back");
+            System.out.print("Choose: ");
 
-
-    public void searchFlightsMenu() {
-        if (searchController == null) {
-            System.out.println("Search module is not connected yet.");
-            return;
+            int choice = readInt();
+            switch (choice) {
+                case 1 -> {
+                    System.out.print("Booking id: ");
+                    int bookingId = readInt();
+                    System.out.println(cancellationController.cancel(bookingId));
+                }
+                default -> { return; }
+            }
         }
-
-        System.out.println("Select FROM city:");
-        String fromCities = searchController.getFlightsFromCities();
-        System.out.println(fromCities);
-        String fromCity = scanner.next();
-
-        System.out.println("Select TO city:");
-        String toCities = searchController.getFlightsToCities();
-        System.out.println(toCities);
-        String toCity = scanner.next();
-
-        System.out.println("Enter FROM date (yyyy-mm-dd | -):");
-        String fromDate = scanner.next();
-
-        System.out.println("Enter TO date (yyyy-mm-dd | -):");
-        String toDate = scanner.next();
-
-        System.out.println("Select flight type (1 - ECONOMY | 2 - BUSINESS):");
-        String type = scanner.next();
-
-        System.out.println("Select sort type (1 - CHEAPEST | 2 - EARLIEST):");
-        String sort = scanner.next();
-
-        String response = searchController.getFlightsByFilter(fromCity, toCity, fromDate, toDate, type, sort);
-        System.out.println(response);
     }
 
-    public void searchHotelsMenu() {
-        if (searchController == null) {
-            System.out.println("Search module is not connected yet.");
-            return;
+    private int readInt() {
+        while (true) {
+            String s = scanner.nextLine().trim();
+            try {
+                return Integer.parseInt(s);
+            } catch (Exception e) {
+                System.out.print("Enter a number: ");
+            }
         }
+    }
 
-        System.out.println("Select FROM city:");
-        String cities = searchController.getHotelsCities();
-        System.out.println(cities);
-        String city = scanner.next();
+    private int readIntInRange(int min, int max) {
+        while (true) {
+            int x = readInt();
+            if (x >= min && x <= max) return x;
+            System.out.print("Enter number in range " + min + ".." + max + ": ");
+        }
+    }
 
-        System.out.println("Enter min stars:");
-        int minStars = scanner.nextInt();
+    private String readLine() {
+        String s = scanner.nextLine();
+        while (s != null && s.trim().isEmpty()) s = scanner.nextLine();
+        return s == null ? "" : s.trim();
+    }
 
-        System.out.println("Enter max price:");
-        int maxPrice = scanner.nextInt();
+    private String readPaymentMethod() {
+        while (true) {
+            String m = readLine().toUpperCase();
+            if (m.equals("CARD") || m.equals("CASH") || m.equals("TRANSFER")) return m;
+            System.out.print("Enter CARD/CASH/TRANSFER: ");
+        }
+    }
 
-        System.out.println("Select sort type (1 - CHEAPEST | 2 - HIGHEST STARS):");
-        String sort = scanner.next();
-
-        String response = searchController.getHotelsByFilter(city, minStars, maxPrice, sort);
-        System.out.println(response);
+    private Integer tryExtractBookingId(String text) {
+        if (text == null) return null;
+        int idx = text.indexOf("ID=");
+        if (idx < 0) return null;
+        idx += 3;
+        StringBuilder sb = new StringBuilder();
+        while (idx < text.length()) {
+            char c = text.charAt(idx);
+            if (!Character.isDigit(c)) break;
+            sb.append(c);
+            idx++;
+        }
+        if (sb.length() == 0) return null;
+        try { return Integer.parseInt(sb.toString()); } catch (Exception e) { return null; }
     }
 }
