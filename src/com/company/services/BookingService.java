@@ -5,6 +5,7 @@ import com.company.models.HotelRow;
 import com.company.repositories.interfaces.IBookingRepository;
 
 import java.sql.Connection;
+import java.util.List;
 
 public class BookingService {
     private final IBookingRepository repo;
@@ -68,6 +69,23 @@ public class BookingService {
             return "Create booking failed: " + e.getMessage();
         } finally {
             try { if (con != null) con.setAutoCommit(true); } catch (Exception ignore) {}
+        }
+    }
+
+    public int createPassenger(String name, String surname, String gender, int age, String passportNumber) {
+        try {
+            boolean male = gender.equalsIgnoreCase("male");
+            return repo.createPassenger(name, surname, male, age, passportNumber);
+        } catch (Exception e) {
+            throw new RuntimeException("Create passenger failed: " + e.getMessage());
+        }
+    }
+
+    public int createGroupBooking(List<Integer> passengerIds, int flightId, int hotelId, int nights, String method, Integer createdByUserId) {
+        try {
+            return repo.createGroupBooking(passengerIds, flightId, hotelId, nights, method, createdByUserId);
+        } catch (Exception e) {
+            throw new RuntimeException("Create group booking failed: " + e.getMessage());
         }
     }
 

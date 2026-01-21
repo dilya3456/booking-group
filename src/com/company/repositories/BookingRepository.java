@@ -1,12 +1,13 @@
 package com.company.repositories;
 
-import java.math.BigDecimal;
 import com.company.data.interfaces.IDB;
 import com.company.models.FlightRow;
 import com.company.models.HotelRow;
 import com.company.repositories.interfaces.IBookingRepository;
 
+import java.math.BigDecimal;
 import java.sql.*;
+import java.util.List;
 
 public class BookingRepository implements IBookingRepository {
     private final IDB db;
@@ -193,6 +194,112 @@ public class BookingRepository implements IBookingRepository {
     }
 
     @Override
+    public int createPassenger(String name, String surname, boolean male, int age, String passportNumber) throws SQLException {
+        String sql = """
+            INSERT INTO passengers(full_name, passport_number, birth_date, nationality, created_at)
+            VALUES (?, ?, (CURRENT_DATE - (? || ' years')::interval)::date, 'KZ', CURRENT_TIMESTAMP)
+            RETURNING id
+        """;
+
+        String fullName = (name == null ? "" : name.trim()) + " " + (surname == null ? "" : surname.trim());
+
+        try (Connection con = db.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, fullName.trim());
+            ps.setString(2, passportNumber == null ? null : passportNumber.trim());
+            ps.setInt(3, age);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getInt("id");
+            }
+        }
+    }
+
+    @Override
+    public int createGroupBooking(List<Integer> passengerIds, int flightId, int hotelId, int nights, String method, Integer createdByUserId) throws SQLException {
+        if (passengerIds == null || passengerIds.isEmpty()) throw new SQLException("No passengers selected.");
+        if (nights < 1 || nights > 30) throw new SQLException("Nights must be 1..30.");
+
+        Connection con = null;
+        try {
+            con = db.getConnection();
+            con.setAutoCommit(false);
+
+            FlightRow flight = getFlightForUpdate(con, flightId);
+            if (flight == null) { con.rollback(); throw new SQLException("Flight not found."); }
+
+            HotelRow hotel = getHotelForUpdate(con, hotelId);
+            if (hotel == null) { con.rollback(); throw new SQLException("Hotel not found."); }
+
+            int travelers = passengerIds.size();
+
+            if (flight.getAvailableSeats() < travelers) { con.rollback(); throw new SQLException("Not enough seats for all travelers."); }
+            if (hotel.getAvailableRooms() <= 0) { con.rollback(); throw new SQLException("No rooms available."); }
+
+            double flightBase = flight.getBasePrice();
+            double hotelNight = hotel.getPricePerNight();
+
+            double flightCoefSum = 0.0;
+            int childrenCount = 0;
+
+            for (Integer pid : passengerIds) {
+                int age = getPassengerAgeFromBirthDate(con, pid);
+                boolean child = age < 12;
+                double coef = child ? 0.7 : 1.0;
+                flightCoefSum += coef;
+                if (child) childrenCount++;
+            }
+
+            double allAdultsFlight = flightBase * travelers;
+            double discountedFlight = flightBase * flightCoefSum;
+            double discountMoney = allAdultsFlight - discountedFlight;
+            if (discountMoney < 0) discountMoney = 0;
+
+            int discountPercent = 0;
+            if (allAdultsFlight > 0) {
+                discountPercent = (int) Math.round((discountMoney / allAdultsFlight) * 100.0);
+            }
+
+            double hotelTotal = hotelNight * nights;
+            double total = discountedFlight + hotelTotal;
+
+            int bookingId = insertBooking(con, passengerIds.get(0), flightId, hotelId, nights, total, createdByUserId);
+
+            insertBookingTravelers(con, bookingId, passengerIds);
+
+            insertPayment(con, bookingId, total, method.toUpperCase());
+            insertHistory(
+                    con,
+                    bookingId,
+                    "CREATED_GROUP",
+                    "Travelers=" + travelers
+                            + ", children=" + childrenCount
+                            + ", childDiscount=" + discountPercent + "%, method=" + method.toUpperCase()
+            );
+
+            decreaseSeatBy(con, flightId, travelers);
+            decreaseRoom(con, hotelId);
+
+            con.commit();
+            con.setAutoCommit(true);
+            return bookingId;
+
+        } catch (Exception e) {
+            if (con != null) {
+                try { con.rollback(); } catch (Exception ignored) {}
+            }
+            throw new SQLException("createGroupBooking error: " + e.getMessage());
+        } finally {
+            if (con != null) {
+                try { con.setAutoCommit(true); } catch (Exception ignored) {}
+                try { con.close(); } catch (Exception ignored) {}
+            }
+        }
+    }
+
+    @Override
     public int insertBooking(Connection con, int passengerId, int flightId, int hotelId, int nights,
                              double totalPrice, Integer createdByUserId) throws SQLException {
         String sql = """
@@ -272,9 +379,9 @@ public class BookingRepository implements IBookingRepository {
     public String getBookingDetails(int bookingId) throws SQLException {
         String sql = """
             SELECT b.id, b.status, b.nights, b.total_price, b.created_at,
-                   p.full_name,
-                   f.flight_code, f.from_city, f.to_city, f.class_type,
-                   h.name AS hotel_name, h.city AS hotel_city, h.stars,
+                   p.full_name AS main_passenger,
+                   f.id AS flight_id, f.flight_code, f.from_city, f.to_city, f.class_type, f.base_price,
+                   h.name AS hotel_name, h.city AS hotel_city, h.stars, h.price_per_night,
                    pay.method, pay.status AS pay_status
             FROM bookings b
             JOIN passengers p ON p.id = b.passenger_id
@@ -292,17 +399,167 @@ public class BookingRepository implements IBookingRepository {
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) return "Booking not found.";
 
-                return "BOOKING #" + rs.getInt("id")
-                        + "\nStatus: " + rs.getString("status")
-                        + "\nPassenger: " + rs.getString("full_name")
-                        + "\nFlight: " + rs.getString("flight_code") + " " + rs.getString("from_city") + "->" + rs.getString("to_city")
-                        + " (" + rs.getString("class_type") + ")"
-                        + "\nHotel: " + rs.getString("hotel_name") + ", " + rs.getString("hotel_city") + " " + rs.getInt("stars") + "★"
-                        + "\nNights: " + rs.getInt("nights")
-                        + "\nTotal: " + rs.getBigDecimal("total_price")
-                        + "\nPayment: " + rs.getString("method") + " / " + rs.getString("pay_status")
-                        + "\nCreated at: " + rs.getTimestamp("created_at");
+                int flightId = rs.getInt("flight_id");
+                int nights = rs.getInt("nights");
+
+                double flightBase = rs.getBigDecimal("base_price").doubleValue();
+                double hotelNight = rs.getBigDecimal("price_per_night").doubleValue();
+
+                TravelersInfo tinfo = fetchTravelersInfo(con, bookingId);
+
+                double allAdultsFlight = flightBase * tinfo.count;
+                double discountedFlight = flightBase * tinfo.flightCoefSum;
+                double discountMoney = allAdultsFlight - discountedFlight;
+                if (discountMoney < 0) discountMoney = 0;
+
+                int discountPercent = 0;
+                if (allAdultsFlight > 0) {
+                    discountPercent = (int) Math.round((discountMoney / allAdultsFlight) * 100.0);
+                }
+
+                double hotelTotal = hotelNight * nights;
+
+                StringBuilder out = new StringBuilder();
+                out.append("BOOKING #").append(rs.getInt("id"))
+                        .append("\nStatus: ").append(rs.getString("status"))
+                        .append("\nCreated at: ").append(rs.getTimestamp("created_at"))
+                        .append("\nMain passenger: ").append(rs.getString("main_passenger"))
+
+                        .append("\n\nFlight: ").append(rs.getString("flight_code"))
+                        .append(" ").append(rs.getString("from_city")).append("->").append(rs.getString("to_city"))
+                        .append(" (").append(rs.getString("class_type")).append(")")
+                        .append("\nFlight base price: ").append(round2(flightBase))
+
+                        .append("\n\nHotel: ").append(rs.getString("hotel_name"))
+                        .append(", ").append(rs.getString("hotel_city"))
+                        .append(" ").append(rs.getInt("stars")).append("★")
+                        .append("\nHotel price/night: ").append(round2(hotelNight))
+                        .append("\nNights: ").append(nights)
+
+                        .append("\n\nTravelers: ").append(tinfo.count)
+                        .append(" (children=").append(tinfo.childrenCount)
+                        .append(", adults=").append(tinfo.count - tinfo.childrenCount).append(")")
+                        .append("\n").append(tinfo.listText)
+
+                        .append("\nBreakdown:")
+                        .append("\n- Flight (all adults): ").append(round2(allAdultsFlight))
+                        .append("\n- Flight (with children discount): ").append(round2(discountedFlight))
+                        .append("\n- Children discount: -").append(round2(discountMoney)).append(" (").append(discountPercent).append("%)")
+                        .append("\n- Hotel total: ").append(round2(hotelTotal))
+                        .append("\n\nTOTAL (saved in DB): ").append(rs.getBigDecimal("total_price"))
+
+                        .append("\n\nPayment: ").append(rs.getString("method")).append(" / ").append(rs.getString("pay_status"));
+
+                return out.toString();
             }
         }
+    }
+
+    private int getPassengerAgeFromBirthDate(Connection con, int passengerId) throws SQLException {
+        String sql = "SELECT birth_date FROM passengers WHERE id = ?";
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, passengerId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) throw new SQLException("Passenger not found: " + passengerId);
+                Date birth = rs.getDate("birth_date");
+                if (birth == null) return 18;
+
+                long ms = System.currentTimeMillis() - birth.getTime();
+                long days = ms / (1000L * 60 * 60 * 24);
+                int age = (int) (days / 365);
+                return Math.max(age, 0);
+            }
+        }
+    }
+
+    private void insertBookingTravelers(Connection con, int bookingId, List<Integer> passengerIds) throws SQLException {
+        String sql = "INSERT INTO booking_travelers(booking_id, passenger_id) VALUES (?, ?)";
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            for (Integer pid : passengerIds) {
+                ps.setInt(1, bookingId);
+                ps.setInt(2, pid);
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        }
+    }
+
+    private void decreaseSeatBy(Connection con, int flightId, int count) throws SQLException {
+        String sql = "UPDATE flights SET available_seats = available_seats - ? WHERE id = ? AND available_seats >= ?";
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, count);
+            ps.setInt(2, flightId);
+            ps.setInt(3, count);
+            ps.executeUpdate();
+        }
+    }
+
+    private static class TravelersInfo {
+        int count;
+        int childrenCount;
+        double flightCoefSum;
+        String listText;
+    }
+
+    private TravelersInfo fetchTravelersInfo(Connection con, int bookingId) throws SQLException {
+        String sql = """
+            SELECT p.id, p.full_name, p.birth_date
+            FROM booking_travelers bt
+            JOIN passengers p ON p.id = bt.passenger_id
+            WHERE bt.booking_id = ?
+            ORDER BY p.id
+        """;
+
+        TravelersInfo info = new TravelersInfo();
+        StringBuilder sb = new StringBuilder();
+
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, bookingId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    int pid = rs.getInt("id");
+                    String fullName = rs.getString("full_name");
+                    Date birth = rs.getDate("birth_date");
+
+                    int age = calcAgeYears(birth);
+                    boolean child = age < 12;
+                    double coef = child ? 0.7 : 1.0;
+
+                    info.count++;
+                    if (child) info.childrenCount++;
+                    info.flightCoefSum += coef;
+
+                    sb.append(" - ID=").append(pid)
+                            .append(" | ").append(fullName == null ? "-" : fullName)
+                            .append(" | age=").append(age)
+                            .append(child ? " (CHILD)" : " (ADULT)")
+                            .append("\n");
+                }
+            }
+        }
+
+        if (info.count == 0) {
+            info.count = 1;
+            info.childrenCount = 0;
+            info.flightCoefSum = 1.0;
+            sb.append(" - No travelers found in booking_travelers.\n");
+        }
+
+        info.listText = sb.toString();
+        return info;
+    }
+
+    private int calcAgeYears(Date birthDate) {
+        if (birthDate == null) return 18;
+        long ms = System.currentTimeMillis() - birthDate.getTime();
+        long days = ms / (1000L * 60 * 60 * 24);
+        int age = (int) (days / 365);
+        if (age < 0) age = 0;
+        return age;
+    }
+
+    private double round2(double x) {
+        return Math.round(x * 100.0) / 100.0;
     }
 }

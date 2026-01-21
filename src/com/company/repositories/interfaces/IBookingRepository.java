@@ -5,6 +5,7 @@ import com.company.models.HotelRow;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.List;
 
 public interface IBookingRepository {
     Connection getConnection() throws SQLException;
@@ -18,6 +19,10 @@ public interface IBookingRepository {
 
     boolean passengerExists(Connection con, int passengerId) throws SQLException;
     int getPassengerDiscount(Connection con, int passengerId) throws SQLException;
+
+    int createPassenger(String name, String surname, boolean male, int age, String passportNumber) throws SQLException;
+
+    int createGroupBooking(List<Integer> passengerIds, int flightId, int hotelId, int nights, String method, Integer createdByUserId) throws SQLException;
 
     int insertBooking(Connection con, int passengerId, int flightId, int hotelId, int nights,
                       double totalPrice, Integer createdByUserId) throws SQLException;
