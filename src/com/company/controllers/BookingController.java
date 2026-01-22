@@ -4,6 +4,7 @@ import com.company.controllers.interfaces.IBookingController;
 import com.company.services.BookingService;
 
 import java.util.List;
+import java.util.List;
 
 public class BookingController implements IBookingController {
     private final BookingService service;
@@ -47,4 +48,14 @@ public class BookingController implements IBookingController {
     public String getBookingDetails(int bookingId) {
         return service.getBookingDetails(bookingId);
     }
+    @Override
+    public String getSeatMap(int flightId) {
+        return service.getSeatMap(flightId);
+    }
+
+    @Override
+    public String chooseSeats(int bookingId, int flightId, List<String> seatCodes) {
+        return service.chooseSeats(bookingId, flightId, seatCodes);
+    }
+
 }

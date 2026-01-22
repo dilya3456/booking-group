@@ -3,6 +3,7 @@ package com.company;
 import com.company.controllers.AuthController;
 import com.company.controllers.interfaces.IBookingController;
 import com.company.controllers.interfaces.ICancellationController;
+import com.company.controllers.interfaces.IReportController;
 import com.company.controllers.interfaces.ISearchController;
 import com.company.controllers.interfaces.IUserController;
 
@@ -18,6 +19,7 @@ public class MyApplication {
     private final ICancellationController cancellationController;
     private final ISearchController searchController;
     private final AuthController authController;
+    private final IReportController reportController;
 
     private Integer currentUserId = null;
 
@@ -28,11 +30,23 @@ public class MyApplication {
             ISearchController searchController,
             AuthController authController
     ) {
+        this(userController, bookingController, cancellationController, searchController, authController, null);
+    }
+
+    public MyApplication(
+            IUserController userController,
+            IBookingController bookingController,
+            ICancellationController cancellationController,
+            ISearchController searchController,
+            AuthController authController,
+            IReportController reportController
+    ) {
         this.userController = userController;
         this.bookingController = bookingController;
         this.cancellationController = cancellationController;
         this.searchController = searchController;
         this.authController = authController;
+        this.reportController = reportController;
     }
 
     public void start() {
@@ -108,6 +122,7 @@ public class MyApplication {
             System.out.println("4) Booking wizard (family/group)");
             System.out.println("5) Search");
             System.out.println("6) Cancellation");
+            System.out.println("7) Reports");
             System.out.println("9) Logout");
             System.out.println("0) Exit");
             System.out.print("Choose: ");
@@ -120,6 +135,7 @@ public class MyApplication {
                 case 4 -> bookingWizardGroup();
                 case 5 -> searchMenu();
                 case 6 -> cancellationMenu();
+                case 7 -> reportsMenu();
                 case 9 -> { currentUserId = null; System.out.println("Logged out."); }
                 default -> { return false; }
             }
@@ -215,6 +231,9 @@ public class MyApplication {
 
         Integer bookingId = tryExtractBookingId(result);
         if (bookingId != null) {
+
+            seatSelectionFlow(bookingId, flightId, 1);
+
             System.out.println("\n--- BOOKING DETAILS ---");
             System.out.println(bookingController.getBookingDetails(bookingId));
         }
@@ -276,6 +295,9 @@ public class MyApplication {
 
         Integer bookingId = tryExtractBookingId(result);
         if (bookingId != null) {
+
+            seatSelectionFlow(bookingId, flightId, passengerIds.size());
+
             System.out.println("\n--- BOOKING DETAILS ---");
             System.out.println(bookingController.getBookingDetails(bookingId));
         } else {
@@ -367,6 +389,96 @@ public class MyApplication {
             }
         }
     }
+
+    private void reportsMenu() {
+        if (reportController == null) {
+            System.out.println("Reports module is not connected yet.");
+            return;
+        }
+
+        while (true) {
+            System.out.println("\n--- REPORTS ---");
+            System.out.println("1) Revenue by Airline");
+            System.out.println("2) Top Routes");
+            System.out.println("3) Revenue by Hotel City");
+            System.out.println("4) Cancellation Statistics");
+            System.out.println("5) Average Stay by Hotel City");
+            System.out.println("0) Back");
+            System.out.print("Choose: ");
+
+            int choice = readInt();
+            switch (choice) {
+                case 1 -> System.out.println(reportController.revenueByAirline());
+                case 2 -> System.out.println(reportController.topRoutes());
+                case 3 -> System.out.println(reportController.revenueByHotelCity());
+                case 4 -> System.out.println(reportController.cancellationStats());
+                case 5 -> System.out.println(reportController.averageStayByHotelCity());
+                default -> { return; }
+            }
+        }
+    }
+
+
+
+    private void seatSelectionFlow(int bookingId, int flightId, int travelersCount) {
+        System.out.println("\n--- SEAT SELECTION ---");
+        System.out.println("Seat map (X = occupied):");
+        System.out.println(bookingController.getSeatMap(flightId));
+
+        List<String> seats = readSeatCodes(travelersCount);
+
+        String resp = bookingController.chooseSeats(bookingId, flightId, seats);
+        System.out.println(resp);
+
+        System.out.println("\nUpdated seat map:");
+        System.out.println(bookingController.getSeatMap(flightId));
+    }
+
+    private List<String> readSeatCodes(int expectedCount) {
+        while (true) {
+            System.out.print("Enter " + expectedCount + " seat codes (example: A1,B2,F30): ");
+            String s = readLine().toUpperCase().replace(" ", "");
+            if (s.isEmpty()) continue;
+
+            String[] parts = s.split(",");
+            if (parts.length != expectedCount) {
+                System.out.println("You must enter exactly " + expectedCount + " seats.");
+                continue;
+            }
+
+            List<String> result = new ArrayList<>();
+            boolean ok = true;
+
+            for (String code : parts) {
+                if (!isValidSeatCode(code)) {
+                    System.out.println("Invalid seat: " + code + " (format A1..F30)");
+                    ok = false;
+                    break;
+                }
+                result.add(code);
+            }
+
+            if (ok) return result;
+        }
+    }
+
+    private boolean isValidSeatCode(String code) {
+        if (code == null || code.length() < 2 || code.length() > 3) return false;
+
+        char letter = code.charAt(0);
+        if (letter < 'A' || letter > 'F') return false;
+
+        String numPart = code.substring(1);
+        int row;
+        try {
+            row = Integer.parseInt(numPart);
+        } catch (Exception e) {
+            return false;
+        }
+        return row >= 1 && row <= 30;
+    }
+
+
 
     private int readInt() {
         while (true) {

@@ -327,23 +327,35 @@ public class BookingRepository implements IBookingRepository {
 
     @Override
     public void insertPayment(Connection con, int bookingId, double amount, String method) throws SQLException {
-        String sql = """
-            INSERT INTO payments(booking_id, amount, method, status)
-            VALUES (?, ?, ?, 'PAID')
-            ON CONFLICT (booking_id) DO UPDATE
-            SET amount = EXCLUDED.amount,
-                method = EXCLUDED.method,
-                status = 'PAID',
-                paid_at = CURRENT_TIMESTAMP
-        """;
+        String checkSql = "SELECT 1 FROM payments WHERE booking_id = ?";
+        boolean exists;
 
-        try (PreparedStatement ps = con.prepareStatement(sql)) {
+        try (PreparedStatement ps = con.prepareStatement(checkSql)) {
             ps.setInt(1, bookingId);
-            ps.setBigDecimal(2, BigDecimal.valueOf(amount));
-            ps.setString(3, method);
-            ps.executeUpdate();
+            try (ResultSet rs = ps.executeQuery()) {
+                exists = rs.next();
+            }
+        }
+
+        if (!exists) {
+            String insertSql = "INSERT INTO payments(booking_id, amount, method, status) VALUES (?, ?, ?, 'PAID')";
+            try (PreparedStatement ps = con.prepareStatement(insertSql)) {
+                ps.setInt(1, bookingId);
+                ps.setBigDecimal(2, BigDecimal.valueOf(amount));
+                ps.setString(3, method);
+                ps.executeUpdate();
+            }
+        } else {
+            String updateSql = "UPDATE payments SET amount = ?, method = ?, status = 'PAID' WHERE booking_id = ?";
+            try (PreparedStatement ps = con.prepareStatement(updateSql)) {
+                ps.setBigDecimal(1, BigDecimal.valueOf(amount));
+                ps.setString(2, method);
+                ps.setInt(3, bookingId);
+                ps.executeUpdate();
+            }
         }
     }
+
 
     @Override
     public void insertHistory(Connection con, int bookingId, String action, String details) throws SQLException {
@@ -562,4 +574,159 @@ public class BookingRepository implements IBookingRepository {
     private double round2(double x) {
         return Math.round(x * 100.0) / 100.0;
     }
+    @Override
+    public String getSeatMap(int flightId) throws SQLException {
+        String sql = """
+        SELECT fs.seat_code,
+               CASE WHEN bs.seat_code IS NULL THEN false ELSE true END AS occupied
+        FROM flight_seats fs
+        LEFT JOIN booking_seats bs
+               ON bs.flight_id = fs.flight_id AND bs.seat_code = fs.seat_code
+        WHERE fs.flight_id = ?
+        ORDER BY
+            CAST(SUBSTRING(fs.seat_code FROM 2) AS INT),
+            SUBSTRING(fs.seat_code FROM 1 FOR 1);
+    """;
+
+        boolean[][] occ = new boolean[30][6]; // [row-1][A..F]
+        try (Connection con = db.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, flightId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String code = rs.getString("seat_code"); // e.g. A12
+                    boolean occupied = rs.getBoolean("occupied");
+
+                    char letter = code.charAt(0);
+                    int row = Integer.parseInt(code.substring(1)); // 1..30
+                    int col = "ABCDEF".indexOf(letter); // 0..5
+                    if (row >= 1 && row <= 30 && col >= 0) {
+                        occ[row - 1][col] = occupied;
+                    }
+                }
+            }
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("\n--- SEAT SELECTION ---\n");
+        sb.append("Seat map (XX = occupied)\n\n");
+        sb.append("    A   B   C   |   D   E   F\n");
+
+        for (int r = 1; r <= 30; r++) {
+            sb.append(String.format("%02d  ", r));
+            for (int c = 0; c < 6; c++) {
+                char letter = "ABCDEF".charAt(c);
+                String code = "" + letter + r;
+                String cell = occ[r - 1][c] ? "XX" : code;
+
+                sb.append("[").append(cell).append("]");
+                if (c == 2) sb.append(" | ");
+            }
+            sb.append("\n");
+        }
+        return sb.toString();
+    }
+
+
+    @Override
+    public boolean areSeatsFree(Connection con, int flightId, List<String> seatCodes) throws SQLException {
+        if (seatCodes == null || seatCodes.isEmpty()) return true;
+
+        String sql = """
+        SELECT COUNT(*)
+        FROM flight_seats
+        WHERE flight_id = ?
+          AND seat_code = ANY(?)
+          AND is_occupied = TRUE
+    """;
+
+        Array arr = con.createArrayOf("text", seatCodes.toArray(new String[0]));
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, flightId);
+            ps.setArray(2, arr);
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getInt(1) == 0;
+            }
+        }
+    }
+
+    @Override
+    public void occupySeats(Connection con, int bookingId, int flightId, List<String> seatCodes) throws SQLException {
+        if (seatCodes == null || seatCodes.isEmpty()) return;
+
+        String updateSql = """
+        UPDATE flight_seats
+        SET is_occupied = TRUE
+        WHERE flight_id = ?
+          AND seat_code = ?
+          AND is_occupied = FALSE
+    """;
+
+        try (PreparedStatement ps = con.prepareStatement(updateSql)) {
+            for (String code : seatCodes) {
+                ps.setInt(1, flightId);
+                ps.setString(2, normalizeSeat(code));
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        }
+
+        String insertSql = "INSERT INTO booking_seats(booking_id, seat_code) VALUES (?, ?)";
+        try (PreparedStatement ps = con.prepareStatement(insertSql)) {
+            for (String code : seatCodes) {
+                ps.setInt(1, bookingId);
+                ps.setString(2, normalizeSeat(code));
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        }
+    }
+
+    private String normalizeSeat(String code) throws SQLException {
+        if (code == null) throw new SQLException("Seat code is null");
+        String s = code.trim().toUpperCase();
+        if (s.length() < 2 || s.length() > 3) throw new SQLException("Invalid seat code: " + code);
+        char letter = s.charAt(0);
+        if (letter < 'A' || letter > 'F') throw new SQLException("Invalid seat letter: " + code);
+        int row;
+        try {
+            row = Integer.parseInt(s.substring(1));
+        } catch (Exception e) {
+            throw new SQLException("Invalid seat row: " + code);
+        }
+        if (row < 1 || row > 30) throw new SQLException("Seat row must be 1..30: " + code);
+        return "" + letter + row;
+    }
+
+    private int[] parseSeat(String code) {
+        try {
+            String s = code.trim().toUpperCase();
+            char letter = s.charAt(0);
+            int row = Integer.parseInt(s.substring(1));
+            if (letter < 'A' || letter > 'F') return null;
+            if (row < 1 || row > 30) return null;
+            int col = letter - 'A';
+            int r = row - 1;
+            return new int[]{r, col};
+        } catch (Exception e) {
+            return null;
+        }
+    }
+    @Override
+    public void insertBookingSeats(Connection con, int bookingId, List<String> seatCodes) throws SQLException {
+        String sql = "INSERT INTO booking_seats(booking_id, seat_code) VALUES (?, ?)";
+
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            for (String seat : seatCodes) {
+                ps.setInt(1, bookingId);
+                ps.setString(2, seat);
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        }
+    }
+
+
 }
