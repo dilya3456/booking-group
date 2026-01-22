@@ -1,11 +1,13 @@
 package com.company;
 
+import com.company.controllers.AuthController;
 import com.company.controllers.BookingController;
 import com.company.controllers.CancellationController;
+import com.company.controllers.ReportController;
 import com.company.controllers.SearchController;
 import com.company.controllers.UserController;
-import com.company.controllers.AuthController;
 
+import com.company.controllers.interfaces.IReportController;
 import com.company.controllers.interfaces.IBookingController;
 import com.company.controllers.interfaces.ICancellationController;
 import com.company.controllers.interfaces.ISearchController;
@@ -14,20 +16,21 @@ import com.company.controllers.interfaces.IUserController;
 import com.company.data.PostgresDB;
 import com.company.data.interfaces.IDB;
 
+import com.company.repositories.AuthRepository;
 import com.company.repositories.BookingRepository;
+import com.company.repositories.ReportRepository;
 import com.company.repositories.SearchRepository;
 import com.company.repositories.UserRepository;
-import com.company.repositories.AuthRepository;
 
+import com.company.repositories.interfaces.IAuthRepository;
 import com.company.repositories.interfaces.IBookingRepository;
 import com.company.repositories.interfaces.ISearchRepository;
 import com.company.repositories.interfaces.IUserRepository;
-import com.company.repositories.interfaces.IAuthRepository;
 
+import com.company.services.AuthService;
 import com.company.services.BookingService;
 import com.company.services.CancellationService;
 import com.company.services.PriceCalculatorService;
-import com.company.services.AuthService;
 
 public class Main {
     public static void main(String[] args) {
@@ -52,12 +55,16 @@ public class Main {
         AuthService authService = new AuthService(authRepo);
         AuthController authController = new AuthController(authService);
 
+        ReportRepository reportRepo = new ReportRepository(db);
+        IReportController reportController = new ReportController(reportRepo);
+
         MyApplication app = new MyApplication(
                 userController,
                 bookingController,
                 cancellationController,
                 searchController,
-                authController
+                authController,
+                reportController
         );
         app.start();
 

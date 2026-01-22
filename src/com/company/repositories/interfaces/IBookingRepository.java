@@ -22,10 +22,24 @@ public interface IBookingRepository {
 
     int createPassenger(String name, String surname, boolean male, int age, String passportNumber) throws SQLException;
 
-    int createGroupBooking(List<Integer> passengerIds, int flightId, int hotelId, int nights, String method, Integer createdByUserId) throws SQLException;
+    int createGroupBooking(
+            List<Integer> passengerIds,
+            int flightId,
+            int hotelId,
+            int nights,
+            String method,
+            Integer createdByUserId
+    ) throws SQLException;
 
-    int insertBooking(Connection con, int passengerId, int flightId, int hotelId, int nights,
-                      double totalPrice, Integer createdByUserId) throws SQLException;
+    int insertBooking(
+            Connection con,
+            int passengerId,
+            int flightId,
+            int hotelId,
+            int nights,
+            double totalPrice,
+            Integer createdByUserId
+    ) throws SQLException;
 
     void insertPayment(Connection con, int bookingId, double amount, String method) throws SQLException;
     void insertHistory(Connection con, int bookingId, String action, String details) throws SQLException;
@@ -34,4 +48,12 @@ public interface IBookingRepository {
     void decreaseRoom(Connection con, int hotelId) throws SQLException;
 
     String getBookingDetails(int bookingId) throws SQLException;
+
+    String getSeatMap(int flightId) throws SQLException;
+
+    boolean areSeatsFree(Connection con, int flightId, List<String> seatCodes) throws SQLException;
+
+    void occupySeats(Connection con, int bookingId, int flightId, List<String> seatCodes) throws SQLException;
+
+    void insertBookingSeats(Connection con, int bookingId, List<String> seatCodes) throws SQLException;
 }

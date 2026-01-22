@@ -74,7 +74,7 @@ public class BookingService {
 
     public int createPassenger(String name, String surname, String gender, int age, String passportNumber) {
         try {
-            boolean male = gender.equalsIgnoreCase("male");
+            boolean male = gender != null && gender.equalsIgnoreCase("male");
             return repo.createPassenger(name, surname, male, age, passportNumber);
         } catch (Exception e) {
             throw new RuntimeException("Create passenger failed: " + e.getMessage());
@@ -118,6 +118,46 @@ public class BookingService {
             return repo.getBookingDetails(bookingId);
         } catch (Exception e) {
             return "Error: " + e.getMessage();
+        }
+    }
+
+    public String getSeatMap(int flightId) {
+        try {
+            return repo.getSeatMap(flightId);
+        } catch (Exception e) {
+            return "Error: " + e.getMessage();
+        }
+    }
+
+    // NEW: choose seats and save to DB
+    public String chooseSeats(int bookingId, int flightId, List<String> seatCodes) {
+        Connection con = null;
+
+        try {
+            if (seatCodes == null || seatCodes.isEmpty()) {
+                return "No seats selected.";
+            }
+
+            con = repo.getConnection();
+            con.setAutoCommit(false);
+
+            boolean free = repo.areSeatsFree(con, flightId, seatCodes);
+            if (!free) {
+                con.rollback();
+                return "Some seats are already occupied. Try again.";
+            }
+
+            repo.occupySeats(con, bookingId, flightId, seatCodes);
+            repo.insertBookingSeats(con, bookingId, seatCodes);
+
+            con.commit();
+            return "Seats selected ✅ " + seatCodes;
+
+        } catch (Exception e) {
+            try { if (con != null) con.rollback(); } catch (Exception ignore) {}
+            return "Choose seats failed: " + e.getMessage();
+        } finally {
+            try { if (con != null) con.setAutoCommit(true); } catch (Exception ignore) {}
         }
     }
 

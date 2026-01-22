@@ -14,4 +14,7 @@ public interface IBookingController {
     int createPassenger(String name, String surname, String gender, int age, String passportNumber);
 
     String createGroupBooking(List<Integer> passengerIds, int flightId, int hotelId, int nights, String method, Integer createdByUserId);
+    String getSeatMap(int flightId);
+    String chooseSeats(int bookingId, int flightId, java.util.List<String> seatCodes);
+
 }
