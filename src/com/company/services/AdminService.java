@@ -30,20 +30,30 @@ public class AdminService {
     }
 
     public String addFlight(int airlineId, String flightCode, String fromCity, String toCity,
-                            Timestamp dep, Timestamp arr, String classType, double basePrice, int seats) {
+                            Timestamp departureTime, Timestamp arrivalTime, String classType,
+                            double basePrice, int availableSeats) {
         try {
-            int id = repo.addFlight(airlineId, flightCode, fromCity, toCity, dep, arr, classType, basePrice, seats);
+            int id = repo.addFlight(airlineId, flightCode, fromCity, toCity,
+                    departureTime, arrivalTime, classType, basePrice, availableSeats);
             return "Flight added ✅ ID=" + id;
         } catch (Exception e) {
             return "Add flight failed: " + e.getMessage();
         }
     }
 
-    public String listAllBookings(int limit) {
+    public String listAllBookings() {
         try {
-            return repo.listAllBookings(limit);
+            return repo.listAllBookings();
         } catch (Exception e) {
             return "List bookings failed: " + e.getMessage();
+        }
+    }
+
+    public String revenueReports() {
+        try {
+            return repo.revenueReports();
+        } catch (Exception e) {
+            return "Revenue reports failed: " + e.getMessage();
         }
     }
 }

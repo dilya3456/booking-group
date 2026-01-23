@@ -1,5 +1,6 @@
 package com.company.controllers;
 
+import com.company.controllers.interfaces.IAdminController;
 import com.company.services.AdminService;
 
 import java.sql.Timestamp;
@@ -23,15 +24,30 @@ public class AdminController implements IAdminController {
 
     @Override
     public String addFlight(int airlineId, String flightCode, String fromCity, String toCity,
-                            String departureIso, String arrivalIso, String classType, double basePrice, int seats) {
+                            String departureTime, String arrivalTime, String classType,
+                            double basePrice, int availableSeats) {
 
-        Timestamp dep = Timestamp.valueOf(departureIso);
-        Timestamp arr = Timestamp.valueOf(arrivalIso);
-        return service.addFlight(airlineId, flightCode, fromCity, toCity, dep, arr, classType, basePrice, seats);
+        try {
+            Timestamp dep = Timestamp.valueOf(departureTime);
+            Timestamp arr = Timestamp.valueOf(arrivalTime);
+
+            return service.addFlight(
+                    airlineId, flightCode, fromCity, toCity,
+                    dep, arr, classType, basePrice, availableSeats
+            );
+
+        } catch (Exception e) {
+            return "Invalid datetime format. Use: yyyy-mm-dd hh:mm:ss";
+        }
     }
 
     @Override
-    public String listAllBookings(int limit) {
-        return service.listAllBookings(limit);
+    public String listAllBookings() {
+        return service.listAllBookings();
+    }
+
+    @Override
+    public String revenueReports() {
+        return service.revenueReports();
     }
 }
