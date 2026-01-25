@@ -1,14 +1,17 @@
 package com.company.services;
 
-import com.company.repositories.BookingRepository;
+import com.company.models.FlightRow;
+import com.company.models.HotelRow;
+import com.company.repositories.interfaces.IBookingRepository;
 
 import java.sql.Connection;
+import java.util.List;
 
 public class BookingService {
-    private final BookingRepository repo;
+    private final IBookingRepository repo;
     private final PriceCalculatorService priceCalc;
 
-    public BookingService(BookingRepository repo, PriceCalculatorService priceCalc) {
+    public BookingService(IBookingRepository repo, PriceCalculatorService priceCalc) {
         this.repo = repo;
         this.priceCalc = priceCalc;
     }
@@ -28,24 +31,23 @@ public class BookingService {
                 return "Passenger not found.";
             }
 
-            // lock rows
-            BookingRepository.FlightRow flight = repo.getFlightForUpdate(con, flightId);
+            FlightRow flight = repo.getFlightForUpdate(con, flightId);
             if (flight == null) { con.rollback(); return "Flight not found."; }
-            if (flight.seats <= 0) { con.rollback(); return "No seats available."; }
+            if (flight.getAvailableSeats() <= 0) { con.rollback(); return "No seats available."; }
 
-            BookingRepository.HotelRow hotel = repo.getHotelForUpdate(con, hotelId);
+            HotelRow hotel = repo.getHotelForUpdate(con, hotelId);
             if (hotel == null) { con.rollback(); return "Hotel not found."; }
-            if (hotel.rooms <= 0) { con.rollback(); return "No rooms available."; }
+            if (hotel.getAvailableRooms() <= 0) { con.rollback(); return "No rooms available."; }
 
             int discount = repo.getPassengerDiscount(con, passengerId);
 
             double total = priceCalc.calculateTotal(
-                    flight.basePrice,
-                    hotel.pricePerNight,
+                    flight.getBasePrice(),
+                    hotel.getPricePerNight(),
                     nights,
                     discount,
-                    hotel.stars,
-                    flight.classType
+                    hotel.getStars(),
+                    flight.getClassType()
             );
 
             int bookingId = repo.insertBooking(con, passengerId, flightId, hotelId, nights, total, createdByUserId);
@@ -67,6 +69,23 @@ public class BookingService {
             return "Create booking failed: " + e.getMessage();
         } finally {
             try { if (con != null) con.setAutoCommit(true); } catch (Exception ignore) {}
+        }
+    }
+
+    public int createPassenger(String name, String surname, String gender, int age, String passportNumber) {
+        try {
+            boolean male = gender != null && gender.equalsIgnoreCase("male");
+            return repo.createPassenger(name, surname, male, age, passportNumber);
+        } catch (Exception e) {
+            throw new RuntimeException("Create passenger failed: " + e.getMessage());
+        }
+    }
+
+    public int createGroupBooking(List<Integer> passengerIds, int flightId, int hotelId, int nights, String method, Integer createdByUserId) {
+        try {
+            return repo.createGroupBooking(passengerIds, flightId, hotelId, nights, method, createdByUserId);
+        } catch (Exception e) {
+            throw new RuntimeException("Create group booking failed: " + e.getMessage());
         }
     }
 
@@ -99,6 +118,46 @@ public class BookingService {
             return repo.getBookingDetails(bookingId);
         } catch (Exception e) {
             return "Error: " + e.getMessage();
+        }
+    }
+
+    public String getSeatMap(int flightId) {
+        try {
+            return repo.getSeatMap(flightId);
+        } catch (Exception e) {
+            return "Error: " + e.getMessage();
+        }
+    }
+
+    // NEW: choose seats and save to DB
+    public String chooseSeats(int bookingId, int flightId, List<String> seatCodes) {
+        Connection con = null;
+
+        try {
+            if (seatCodes == null || seatCodes.isEmpty()) {
+                return "No seats selected.";
+            }
+
+            con = repo.getConnection();
+            con.setAutoCommit(false);
+
+            boolean free = repo.areSeatsFree(con, flightId, seatCodes);
+            if (!free) {
+                con.rollback();
+                return "Some seats are already occupied. Try again.";
+            }
+
+            repo.occupySeats(con, bookingId, flightId, seatCodes);
+            repo.insertBookingSeats(con, bookingId, seatCodes);
+
+            con.commit();
+            return "Seats selected ✅ " + seatCodes;
+
+        } catch (Exception e) {
+            try { if (con != null) con.rollback(); } catch (Exception ignore) {}
+            return "Choose seats failed: " + e.getMessage();
+        } finally {
+            try { if (con != null) con.setAutoCommit(true); } catch (Exception ignore) {}
         }
     }
 

@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class UserRepository implements IUserRepository {
-    private final IDB db;  // Dependency Injection
+    private final IDB db;
 
     public UserRepository(IDB db) {
         this.db = db;
