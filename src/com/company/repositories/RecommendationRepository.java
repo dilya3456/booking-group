@@ -1,7 +1,6 @@
 package com.company.repositories;
 
-import com.company.dataAdd recommendation module (repository, service, controller)
-.IDB;
+import com.company.data.IDB;
 import com.company.models.FlightRow;
 import com.company.repositories.interfaces.IRecommendationRepository;
 
@@ -18,8 +17,9 @@ public class RecommendationRepository implements IRecommendationRepository {
     }
 
     @Override
-    public List<FlightRow> getAllFlights() {
+    public List<FlightRow> getAvailableFlights() {
         List<FlightRow> flights = new ArrayList<>();
+
 
         String sql = """
             SELECT id, base_price, class_type, available_seats
@@ -39,6 +39,7 @@ public class RecommendationRepository implements IRecommendationRepository {
                         rs.getInt("available_seats")
                 ));
             }
+
         } catch (Exception e) {
             System.out.println("RecommendationRepository error: " + e.getMessage());
         }
@@ -46,4 +47,3 @@ public class RecommendationRepository implements IRecommendationRepository {
         return flights;
     }
 }
-

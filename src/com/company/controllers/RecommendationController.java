@@ -1,9 +1,10 @@
 package com.company.controllers;
 
+import com.company.controllers.interfaces.IRecommendationController;
 import com.company.repositories.interfaces.IRecommendationRepository;
 import com.company.services.RecommendationService;
 
-public class RecommendationController {
+public class RecommendationController implements IRecommendationController {
 
     private final IRecommendationRepository repo;
     private final RecommendationService service;
@@ -13,22 +14,28 @@ public class RecommendationController {
         this.service = new RecommendationService();
     }
 
+    @Override
     public void showRecommendation() {
-        var flights = repo.getAllFlights();
+        var flights = repo.getAvailableFlights();
         var result = service.recommend(flights);
 
-        if (result.best == null) {
+        if (result.getBest() == null) {
             System.out.println("No recommendation available.");
             return;
         }
 
+        var f = result.getBest();
+
         System.out.println("=== Recommended flight ===");
-        System.out.println("Flight ID: " + result.best.getId());
-        System.out.println("Price: " + result.best.getBasePrice());
-        System.out.println("Class: " + result.best.getClassType());
-        System.out.println("Seats: " + result.best.getAvailableSeats());
+        System.out.println("Flight ID: " + f.getId());
+        System.out.println("Price: " + (int) f.getBasePrice() + " KZT");
+        System.out.println("Class: " + f.getClassType());
+        System.out.println("Available seats: " + f.getAvailableSeats());
+        System.out.println();
         System.out.println("Why recommended:");
-        result.reasons.forEach(System.out::println);
+        for (String r : result.getReasons()) {
+            System.out.println(r);
+        }
         System.out.println("--------------------------");
     }
 }

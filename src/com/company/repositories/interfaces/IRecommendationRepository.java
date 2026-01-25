@@ -4,5 +4,6 @@ import com.company.models.FlightRow;
 import java.util.List;
 
 public interface IRecommendationRepository {
-    List<FlightRow> getAllFlights();
+    List<FlightRow> getAvailableFlights();
 }
+
