@@ -19,11 +19,11 @@ public class MyApplication {
     private final IReportController reportController;
 
 
-    private final IAdminController adminController;   // may be null
-    private final IPromoController promoController;   // may be null
+    private final IAdminController adminController;
+    private final IPromoController promoController;
 
     private Integer currentUserId = null;
-    private String currentUserRole = null; // "ADMIN" or "MANAGER"
+    private String currentUserRole = null;
 
 
     private static final boolean USE_COLORS = true;
@@ -87,7 +87,7 @@ public class MyApplication {
 
 
     public void start() {
-        System.out.println("\n" + c("✈️  Welcome to Smart Travel Agency System", ANSI_CYAN));
+        System.out.println("\n" + c("✈️  Welcome to Smart Travel Agency System!", ANSI_CYAN));
 
         while (true) {
             if (currentUserId == null) {
@@ -350,7 +350,7 @@ public class MyApplication {
     private void bookingWizardGroup() {
         System.out.println("\n" + c("👨‍👩‍👧‍👦 ========= BOOKING WIZARD (FAMILY/GROUP) =========", ANSI_CYAN));
 
-        System.out.print("👥 How many travelers (1..6): ");
+        System.out.print("👥 How many travelers: ");
         int n = readIntInRange(1, 6);
 
         List<Integer> passengerIds = new ArrayList<>();
