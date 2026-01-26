@@ -87,7 +87,7 @@ public class MyApplication {
 
 
     public void start() {
-        System.out.println("\n" + c("✈️  Welcome to Smart Travel Agency System", ANSI_CYAN));
+        System.out.println("\n" + c("✈️  Welcome to Smart Travel Agency System!", ANSI_CYAN));
 
         while (true) {
             if (currentUserId == null) {
