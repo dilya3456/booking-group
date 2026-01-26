@@ -9,11 +9,15 @@ public class AuthController {
         this.service = service;
     }
 
-    public String register(String username, String password) {
-        return service.register(username, password);
-    }
-
     public Integer login(String username, String password) {
         return service.login(username, password);
     }
+
+    public String register(String username, String password) {
+        return service.register(username, password);
+    }
+    public String getRoleByUsername(String username) {
+        return service.getRoleByUsername(username);
+    }
+
 }

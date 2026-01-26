@@ -7,21 +7,21 @@ public class PriceCalculatorService {
 
         double flight = flightBasePrice;
 
-        // business markup
+
         if ("BUSINESS".equalsIgnoreCase(classType)) {
             flight *= 1.25;
         }
 
         double hotel = hotelPricePerNight * nights;
 
-        // 5-star markup
+
         if (hotelStars == 5) {
             hotel *= 1.20;
         }
 
         double total = flight + hotel;
 
-        // loyalty discount
+
         if (discountPercent > 0) {
             total = total * (1.0 - (discountPercent / 100.0));
         }

@@ -218,84 +218,94 @@ public class BookingRepository implements IBookingRepository {
     }
 
     @Override
-    public int createGroupBooking(List<Integer> passengerIds, int flightId, int hotelId, int nights, String method, Integer createdByUserId) throws SQLException {
-        if (passengerIds == null || passengerIds.isEmpty()) throw new SQLException("No passengers selected.");
-        if (nights < 1 || nights > 30) throw new SQLException("Nights must be 1..30.");
+    public int createGroupBooking(Connection con,
+                                  List<Integer> passengerIds,
+                                  int flightId,
+                                  int hotelId,
+                                  int nights,
+                                  String method,
+                                  Integer createdByUserId) {
 
-        Connection con = null;
         try {
-            con = db.getConnection();
-            con.setAutoCommit(false);
-
-            FlightRow flight = getFlightForUpdate(con, flightId);
-            if (flight == null) { con.rollback(); throw new SQLException("Flight not found."); }
-
-            HotelRow hotel = getHotelForUpdate(con, hotelId);
-            if (hotel == null) { con.rollback(); throw new SQLException("Hotel not found."); }
-
-            int travelers = passengerIds.size();
-
-            if (flight.getAvailableSeats() < travelers) { con.rollback(); throw new SQLException("Not enough seats for all travelers."); }
-            if (hotel.getAvailableRooms() <= 0) { con.rollback(); throw new SQLException("No rooms available."); }
-
-            double flightBase = flight.getBasePrice();
-            double hotelNight = hotel.getPricePerNight();
-
-            double flightCoefSum = 0.0;
-            int childrenCount = 0;
 
             for (Integer pid : passengerIds) {
-                int age = getPassengerAgeFromBirthDate(con, pid);
-                boolean child = age < 12;
-                double coef = child ? 0.7 : 1.0;
-                flightCoefSum += coef;
-                if (child) childrenCount++;
+                if (!passengerExists(con, pid))
+                    throw new RuntimeException("Passenger not found: " + pid);
             }
 
-            double allAdultsFlight = flightBase * travelers;
-            double discountedFlight = flightBase * flightCoefSum;
-            double discountMoney = allAdultsFlight - discountedFlight;
-            if (discountMoney < 0) discountMoney = 0;
+            FlightRow flight = getFlightForUpdate(con, flightId);
+            if (flight == null) throw new RuntimeException("Flight not found");
+            if (flight.getAvailableSeats() < passengerIds.size())
+                throw new RuntimeException("Not enough seats");
 
-            int discountPercent = 0;
-            if (allAdultsFlight > 0) {
-                discountPercent = (int) Math.round((discountMoney / allAdultsFlight) * 100.0);
+
+            HotelRow hotel = getHotelForUpdate(con, hotelId);
+            if (hotel == null) throw new RuntimeException("Hotel not found");
+            if (hotel.getAvailableRooms() <= 0)
+                throw new RuntimeException("No rooms available");
+
+            double total = flight.getBasePrice() * passengerIds.size()
+                    + hotel.getPricePerNight() * nights;
+
+
+            String sql = """
+  INSERT INTO bookings(passenger_id, flight_id, hotel_id, nights, total_price, created_by_user_id)
+  VALUES (?, ?, ?, ?, ?, ?)
+  RETURNING id
+""";
+
+
+
+            int bookingId;
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                ps.setInt(1, passengerIds.get(0)); // главный пассажир
+                ps.setInt(2, flightId);
+                ps.setInt(3, hotelId);
+                ps.setInt(4, nights);
+                ps.setDouble(5, total);
+                ps.setObject(6, createdByUserId);
+
+                ResultSet rs = ps.executeQuery();
+                rs.next();
+                bookingId = rs.getInt(1);
             }
 
-            double hotelTotal = hotelNight * nights;
-            double total = discountedFlight + hotelTotal;
 
-            int bookingId = insertBooking(con, passengerIds.get(0), flightId, hotelId, nights, total, createdByUserId);
+            for (Integer pid : passengerIds) {
+                try (PreparedStatement ps = con.prepareStatement(
+                        "INSERT INTO booking_travelers(booking_id, passenger_id) VALUES (?, ?)")) {
+                    ps.setInt(1, bookingId);
+                    ps.setInt(2, pid);
+                    ps.executeUpdate();
+                }
+            }
 
-            insertBookingTravelers(con, bookingId, passengerIds);
+            try (PreparedStatement ps = con.prepareStatement(
+                    "UPDATE flights SET available_seats = available_seats - ? WHERE id = ?")) {
+                ps.setInt(1, passengerIds.size());
+                ps.setInt(2, flightId);
+                ps.executeUpdate();
+            }
 
-            insertPayment(con, bookingId, total, method.toUpperCase());
-            insertHistory(
-                    con,
-                    bookingId,
-                    "CREATED_GROUP",
-                    "Travelers=" + travelers
-                            + ", children=" + childrenCount
-                            + ", childDiscount=" + discountPercent + "%, method=" + method.toUpperCase()
-            );
+            try (PreparedStatement ps = con.prepareStatement(
+                    "UPDATE hotels SET available_rooms = available_rooms - 1 WHERE id = ?")) {
+                ps.setInt(1, hotelId);
+                ps.executeUpdate();
+            }
 
-            decreaseSeatBy(con, flightId, travelers);
-            decreaseRoom(con, hotelId);
 
-            con.commit();
-            con.setAutoCommit(true);
+            try (PreparedStatement ps = con.prepareStatement(
+                    "INSERT INTO payments(booking_id, amount, method) VALUES (?, ?, ?)")) {
+                ps.setInt(1, bookingId);
+                ps.setDouble(2, total);
+                ps.setString(3, method);
+                ps.executeUpdate();
+            }
+
             return bookingId;
 
         } catch (Exception e) {
-            if (con != null) {
-                try { con.rollback(); } catch (Exception ignored) {}
-            }
-            throw new SQLException("createGroupBooking error: " + e.getMessage());
-        } finally {
-            if (con != null) {
-                try { con.setAutoCommit(true); } catch (Exception ignored) {}
-                try { con.close(); } catch (Exception ignored) {}
-            }
+            throw new RuntimeException("createGroupBooking error: " + e.getMessage(), e);
         }
     }
 
@@ -673,15 +683,17 @@ public class BookingRepository implements IBookingRepository {
             ps.executeBatch();
         }
 
-        String insertSql = "INSERT INTO booking_seats(booking_id, seat_code) VALUES (?, ?)";
+        String insertSql = "INSERT INTO booking_seats(booking_id, flight_id, seat_code) VALUES (?, ?, ?)";
         try (PreparedStatement ps = con.prepareStatement(insertSql)) {
             for (String code : seatCodes) {
                 ps.setInt(1, bookingId);
-                ps.setString(2, normalizeSeat(code));
+                ps.setInt(2, flightId);
+                ps.setString(3, normalizeSeat(code));
                 ps.addBatch();
             }
             ps.executeBatch();
         }
+
     }
 
     private String normalizeSeat(String code) throws SQLException {
@@ -727,6 +739,15 @@ public class BookingRepository implements IBookingRepository {
             ps.executeBatch();
         }
     }
+    @Override
+    public void insertBookingExtras(Connection con, int bookingId, com.company.models.ExtraSelection extras, double extrasTotal) throws SQLException {
+
+        String details = "EXTRAS: " + extras + ", extrasTotal=" + Math.round(extrasTotal * 100.0) / 100.0;
+        insertHistory(con, bookingId, "EXTRAS_ADDED", details);
+
+
+    }
+
 
 
 }
