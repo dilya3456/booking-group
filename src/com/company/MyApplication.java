@@ -19,11 +19,11 @@ public class MyApplication {
     private final IReportController reportController;
 
 
-    private final IAdminController adminController;   // may be null
-    private final IPromoController promoController;   // may be null
+    private final IAdminController adminController;
+    private final IPromoController promoController;
 
     private Integer currentUserId = null;
-    private String currentUserRole = null; // "ADMIN" or "MANAGER"
+    private String currentUserRole = null;
 
 
     private static final boolean USE_COLORS = true;
