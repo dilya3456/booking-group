@@ -18,14 +18,14 @@ public class MyApplication {
     private final AuthController authController;
     private final IReportController reportController;
 
-    // optional modules
+
     private final IAdminController adminController;   // may be null
     private final IPromoController promoController;   // may be null
 
     private Integer currentUserId = null;
     private String currentUserRole = null; // "ADMIN" or "MANAGER"
 
-    // ======= UI (emoji + optional colors) =======
+
     private static final boolean USE_COLORS = true;
 
     private static final String ANSI_RESET = "\u001B[0m";
