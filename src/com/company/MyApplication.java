@@ -175,7 +175,7 @@ public class MyApplication {
         if (resp == null) System.out.println(c("❌ Register failed.", ANSI_RED));
         else System.out.println(c("✅ " + resp, ANSI_GREEN));
 
-        // НЕ авто-логиним админа. Регистрация = USER.
+
         if (resp != null && resp.toLowerCase().contains("success")) {
             Integer id = authController.login(username, password);
             if (id != null) {

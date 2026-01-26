@@ -102,7 +102,7 @@ public class CancellationService {
                 ps.executeUpdate();
             }
 
-            // history
+
             try (PreparedStatement ps = con.prepareStatement(
                     "INSERT INTO booking_history(booking_id, action) VALUES (?, 'CANCELLED')")) {
                 ps.setInt(1, bookingId);
