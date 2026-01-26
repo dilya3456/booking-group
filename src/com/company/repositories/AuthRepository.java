@@ -31,7 +31,8 @@ public class AuthRepository implements IAuthRepository {
 
     @Override
     public boolean register(String username, String passwordHash) {
-        String sql = "INSERT INTO auth_users(username, password_hash) VALUES (?, ?)";
+        String sql = "INSERT INTO auth_users(username, password_hash, role) VALUES (?, ?, 'USER')";
+
         try (Connection con = db.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
 
@@ -40,9 +41,10 @@ public class AuthRepository implements IAuthRepository {
             return ps.executeUpdate() == 1;
 
         } catch (Exception e) {
-            return false;
+            throw new RuntimeException("register error: " + e.getMessage());
         }
     }
+
 
     @Override
     public Integer login(String username, String passwordHash) {
@@ -60,5 +62,28 @@ public class AuthRepository implements IAuthRepository {
         } catch (Exception e) {
             throw new RuntimeException("login error: " + e.getMessage());
         }
+    }
+
+    @Override
+    public String getRoleByUsername(String username) {
+        String sql = "SELECT role FROM auth_users WHERE username = ?";
+
+        try (Connection con = db.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, username);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String role = rs.getString("role");
+                    return role == null ? "MANAGER" : role.toUpperCase();
+                }
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException("Get role failed: " + e.getMessage());
+        }
+
+        return "MANAGER";
     }
 }

@@ -51,4 +51,8 @@ public class AuthService {
             throw new RuntimeException("Hash error: " + e.getMessage());
         }
     }
+    public String getRoleByUsername(String username) {
+        return repo.getRoleByUsername(username);
+    }
+
 }

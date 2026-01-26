@@ -67,14 +67,14 @@ public class CancellationService {
             double refundRate = (hoursLeft >= 48) ? 0.90 : 0.50;
             double refundAmount = round2(totalPrice * refundRate);
 
-            // booking -> CANCELLED
+
             try (PreparedStatement ps = con.prepareStatement(
                     "UPDATE bookings SET status='CANCELLED' WHERE id=?")) {
                 ps.setInt(1, bookingId);
                 ps.executeUpdate();
             }
 
-            // cancellations insert
+
             try (PreparedStatement ps = con.prepareStatement(
                     "INSERT INTO cancellations(booking_id, refund_amount) VALUES (?, ?) ON CONFLICT (booking_id) DO NOTHING")) {
                 ps.setInt(1, bookingId);
@@ -82,14 +82,14 @@ public class CancellationService {
                 ps.executeUpdate();
             }
 
-            // payment -> REFUNDED (if exists)
+
             try (PreparedStatement ps = con.prepareStatement(
                     "UPDATE payments SET status='REFUNDED' WHERE booking_id=?")) {
                 ps.setInt(1, bookingId);
                 ps.executeUpdate();
             }
 
-            // restore resources
+
             try (PreparedStatement ps = con.prepareStatement(
                     "UPDATE flights SET available_seats = available_seats + 1 WHERE id=?")) {
                 ps.setInt(1, flightId);
