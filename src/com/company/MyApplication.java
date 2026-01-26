@@ -350,7 +350,7 @@ public class MyApplication {
     private void bookingWizardGroup() {
         System.out.println("\n" + c("👨‍👩‍👧‍👦 ========= BOOKING WIZARD (FAMILY/GROUP) =========", ANSI_CYAN));
 
-        System.out.print("👥 How many travelers (1..6): ");
+        System.out.print("👥 How many travelers: ");
         int n = readIntInRange(1, 6);
 
         List<Integer> passengerIds = new ArrayList<>();
