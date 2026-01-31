@@ -747,7 +747,160 @@ public class BookingRepository implements IBookingRepository {
 
 
     }
+    public int createCategory(String name) throws SQLException {
+        String sql = "INSERT INTO categories(name) VALUES (?) RETURNING id";
+        try (Connection con = db.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, name.trim().toUpperCase());
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getInt(1);
+            }
+        }
+    }
 
+    public String listCategories() throws SQLException {
+        String sql = "SELECT id, name FROM categories ORDER BY id";
+        StringBuilder sb = new StringBuilder();
+        try (Connection con = db.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                sb.append("ID=").append(rs.getInt("id"))
+                        .append(" | ").append(rs.getString("name"))
+                        .append("\n");
+            }
+        }
+        return sb.length() == 0 ? "No categories." : sb.toString();
+    }
+
+    public void setHotelCategory(Connection con, int hotelId, int categoryId) throws SQLException {
+        String sql = "UPDATE hotels SET category_id = ? WHERE id = ?";
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, categoryId);
+            ps.setInt(2, hotelId);
+            ps.executeUpdate();
+        }
+    }
+
+    public String getFullBookingDescription(int bookingId) throws SQLException {
+        String sql = """
+        SELECT
+            b.id AS booking_id,
+            b.status,
+            b.nights,
+            b.total_price,
+            b.created_at,
+
+            p.full_name AS main_passenger,
+
+            f.flight_code,
+            f.from_city,
+            f.to_city,
+            f.class_type,
+            f.departure_time,
+            f.arrival_time,
+            f.base_price,
+
+            h.name AS hotel_name,
+            h.city AS hotel_city,
+            h.stars,
+            h.price_per_night,
+
+            c.name AS hotel_category,
+
+            pay.method AS pay_method,
+            pay.status AS pay_status,
+            pay.amount AS pay_amount
+        FROM bookings b
+        JOIN passengers p ON p.id = b.passenger_id
+        JOIN flights f ON f.id = b.flight_id
+        JOIN hotels h ON h.id = b.hotel_id
+        LEFT JOIN categories c ON c.id = h.category_id
+        LEFT JOIN payments pay ON pay.booking_id = b.id
+        WHERE b.id = ?
+    """;
+
+        try (Connection con = db.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, bookingId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) return "Booking not found: " + bookingId;
+
+                StringBuilder out = new StringBuilder();
+
+                out.append("=== FULL BOOKING DESCRIPTION ===\n");
+                out.append("Booking #").append(rs.getInt("booking_id")).append("\n");
+                out.append("Status: ").append(rs.getString("status")).append("\n");
+                out.append("Created at: ").append(rs.getTimestamp("created_at")).append("\n");
+                out.append("Main passenger: ").append(rs.getString("main_passenger")).append("\n\n");
+
+                out.append("--- FLIGHT ---\n");
+                out.append("Code: ").append(rs.getString("flight_code")).append("\n");
+                out.append("Route: ").append(rs.getString("from_city")).append(" -> ").append(rs.getString("to_city")).append("\n");
+                out.append("Class: ").append(rs.getString("class_type")).append("\n");
+                out.append("Departure: ").append(rs.getTimestamp("departure_time")).append("\n");
+                out.append("Arrival: ").append(rs.getTimestamp("arrival_time")).append("\n");
+                out.append("Base price: ").append(rs.getBigDecimal("base_price")).append("\n\n");
+
+                out.append("--- HOTEL ---\n");
+                out.append("Name: ").append(rs.getString("hotel_name")).append("\n");
+                out.append("City: ").append(rs.getString("hotel_city")).append("\n");
+                out.append("Stars: ").append(rs.getInt("stars")).append("★\n");
+                out.append("Price/night: ").append(rs.getBigDecimal("price_per_night")).append("\n");
+                String cat = rs.getString("hotel_category");
+                out.append("Category: ").append(cat == null ? "-" : cat).append("\n\n");
+
+                out.append("--- PAYMENT ---\n");
+                String m = rs.getString("pay_method");
+                String s = rs.getString("pay_status");
+                BigDecimal a = rs.getBigDecimal("pay_amount");
+                if (m == null) {
+                    out.append("No payment record.\n");
+                } else {
+                    out.append("Method: ").append(m).append("\n");
+                    out.append("Status: ").append(s).append("\n");
+                    out.append("Amount: ").append(a).append("\n");
+                }
+
+
+                out.append("\n--- TRAVELERS (group) ---\n");
+                out.append(fetchTravelersList(con, bookingId));
+
+                return out.toString();
+            }
+        }
+    }
+
+    private String fetchTravelersList(Connection con, int bookingId) throws SQLException {
+        String sql = """
+        SELECT p.id, p.full_name, p.passport_number, p.birth_date
+        FROM booking_travelers bt
+        JOIN passengers p ON p.id = bt.passenger_id
+        WHERE bt.booking_id = ?
+        ORDER BY p.id
+    """;
+
+        StringBuilder sb = new StringBuilder();
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, bookingId);
+            try (ResultSet rs = ps.executeQuery()) {
+                int count = 0;
+                while (rs.next()) {
+                    count++;
+                    sb.append(count).append(") ID=").append(rs.getInt("id"))
+                            .append(" | ").append(rs.getString("full_name"))
+                            .append(" | passport=").append(rs.getString("passport_number"))
+                            .append(" | birth=").append(rs.getDate("birth_date"))
+                            .append("\n");
+                }
+                if (count == 0) sb.append("No travelers found (maybe single booking).\n");
+            }
+        }
+        return sb.toString();
+    }
 
 
 }

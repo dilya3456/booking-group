@@ -208,6 +208,11 @@ public class MyApplication {
             if ("ADMIN".equals(currentUserRole) && adminController != null) {
                 System.out.println("10) 👑 Admin Panel");
             }
+            if (bookingController != null && ("ADMIN".equals(currentUserRole) )) {
+                System.out.println("11) Full booking description (JOIN)");
+            }
+
+
 
             System.out.println("9) 🚪 Logout");
             System.out.println("0) ❌ Exit");
@@ -222,7 +227,11 @@ public class MyApplication {
                 case 5 -> searchMenu();
                 case 6 -> cancellationMenu();
                 case 7 -> reportsMenu();
-                case 8 -> applyPromoFlow();
+                case 8 -> {
+                    if (promoController != null) applyPromoFlow();
+                    else System.out.println(c("⚠️ Option not available.", ANSI_YELLOW));
+                }
+
                 case 9 -> {
                     currentUserId = null;
                     currentUserRole = null;
@@ -232,6 +241,29 @@ public class MyApplication {
                     if ("ADMIN".equals(currentUserRole)) adminMenu();
                     else System.out.println(c("⛔ Access denied.", ANSI_RED));
                 }
+                case 11 -> {
+                    if (!("ADMIN".equals(currentUserRole) || "MANAGER".equals(currentUserRole))) {
+                        System.out.println(c("⛔ Access denied.", ANSI_RED));
+                        break;
+                    }
+
+                    if (bookingController == null) {
+                        System.out.println(c("⚠️ Feature not available.", ANSI_YELLOW));
+                        break;
+                    }
+
+                    System.out.print("Enter booking id: ");
+                    int id = readInt();
+
+                    if (id <= 0) {
+                        System.out.println(c("⚠️ booking id must be positive.", ANSI_YELLOW));
+                        break;
+                    }
+
+                    System.out.println(bookingController.getFullBookingDescription(id));
+                }
+
+
                 case 0 -> { return false; }
                 default -> System.out.println(c("⚠️ Enter valid menu number.", ANSI_YELLOW));
             }
