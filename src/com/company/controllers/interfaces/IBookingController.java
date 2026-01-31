@@ -21,4 +21,7 @@ public interface IBookingController {
 
     String getSeatMap(int flightId);
     String chooseSeats(int bookingId, int flightId, List<String> seatCodes);
+    String getFullBookingDescription(int bookingId);
+
 }
+

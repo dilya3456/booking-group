@@ -39,4 +39,9 @@ public class BookingController implements IBookingController {
     @Override public String chooseSeats(int bookingId, int flightId, List<String> seatCodes) {
         return service.chooseSeats(bookingId, flightId, seatCodes);
     }
+    @Override
+    public String getFullBookingDescription(int bookingId) {
+        return service.getFullBookingDescription(bookingId);
+    }
+
 }

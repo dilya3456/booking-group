@@ -1,5 +1,7 @@
 package com.company.services;
 
+import com.company.factories.PaymentMethodFactory;
+import com.company.models.PaymentMethod;
 import com.company.models.ExtraSelection;
 import com.company.models.FlightRow;
 import com.company.models.HotelRow;
@@ -25,7 +27,14 @@ public class BookingService {
 
         try {
             if (nights < 1 || nights > 30) return "Nights must be 1..30.";
-            if (!isValidMethod(paymentMethod)) return "Payment method must be CARD/CASH/TRANSFER.";
+
+            // FACTORY usage (PaymentMethodFactory)
+            PaymentMethod pm;
+            try {
+                pm = PaymentMethodFactory.fromString(paymentMethod);
+            } catch (Exception e) {
+                return "Payment method must be CARD/CASH/TRANSFER.";
+            }
 
             con = repo.getConnection();
             con.setAutoCommit(false);
@@ -63,9 +72,9 @@ public class BookingService {
 
             repo.insertBookingExtras(con, bookingId, extras, extrasTotal);
 
-            repo.insertPayment(con, bookingId, total, paymentMethod.toUpperCase());
+            repo.insertPayment(con, bookingId, total, pm.name());
             repo.insertHistory(con, bookingId, "CREATED",
-                    "Method=" + paymentMethod.toUpperCase() + ", base=" + round2(baseTotal) + ", extras=" + round2(extrasTotal));
+                    "Method=" + pm.name() + ", base=" + round2(baseTotal) + ", extras=" + round2(extrasTotal));
 
             repo.decreaseSeat(con, flightId);
             repo.decreaseRoom(con, hotelId);
@@ -83,10 +92,10 @@ public class BookingService {
             return "Create booking failed: " + e.getMessage();
         } finally {
             try { if (con != null) con.setAutoCommit(true); } catch (Exception ignore) {}
+            // рекомендую закрывать соединение (чтобы не висело)
+            try { if (con != null) con.close(); } catch (Exception ignore) {}
         }
     }
-
-
 
     public int createGroupBooking(List<Integer> passengerIds, int flightId, int hotelId, int nights,
                                   String method, Integer createdByUserId, ExtraSelection extras) {
@@ -121,12 +130,22 @@ public class BookingService {
 
     public int createPassenger(String name, String surname, String gender, int age, String passportNumber) {
         try {
+            if (passportNumber == null || passportNumber.trim().isEmpty()) {
+                throw new RuntimeException("Passport number cannot be empty");
+            }
+
+            if (age < 0 || age > 120) {
+                throw new RuntimeException("Invalid age");
+            }
+
             boolean male = gender != null && gender.equalsIgnoreCase("male");
-            return repo.createPassenger(name, surname, male, age, passportNumber);
+            return repo.createPassenger(name, surname, male, age, passportNumber.trim());
+
         } catch (Exception e) {
             throw new RuntimeException("Create passenger failed: " + e.getMessage());
         }
     }
+
 
 
     public String listFlights(int limit) {
@@ -161,28 +180,41 @@ public class BookingService {
         try {
             if (seatCodes == null || seatCodes.isEmpty()) return "No seats selected.";
 
+            // LAMBDA / STREAM API
+            List<String> normalized = seatCodes.stream()
+                    .filter(s -> s != null && !s.trim().isEmpty())
+                    .map(s -> s.trim().toUpperCase())
+                    .distinct()
+                    .toList();
+
+            if (normalized.isEmpty()) return "No seats selected.";
+            if (bookingId <= 0) return "bookingId must be positive.";
+            if (flightId <= 0) return "flightId must be positive.";
+
             con = repo.getConnection();
             con.setAutoCommit(false);
 
-            boolean free = repo.areSeatsFree(con, flightId, seatCodes);
+            boolean free = repo.areSeatsFree(con, flightId, normalized);
             if (!free) {
                 con.rollback();
                 return "Some seats are already occupied.";
             }
 
-            repo.occupySeats(con, bookingId, flightId, seatCodes);
-            repo.insertHistory(con, bookingId, "SEATS_CHOSEN", "Seats=" + seatCodes);
+            repo.occupySeats(con, bookingId, flightId, normalized);
+            repo.insertHistory(con, bookingId, "SEATS_CHOSEN", "Seats=" + normalized);
 
             con.commit();
-            return "Seats saved ✅ " + seatCodes;
+            return "Seats saved ✅ " + normalized;
 
         } catch (Exception e) {
             try { if (con != null) con.rollback(); } catch (Exception ignore) {}
             return "Choose seats failed: " + e.getMessage();
         } finally {
             try { if (con != null) con.setAutoCommit(true); } catch (Exception ignore) {}
+            try { if (con != null) con.close(); } catch (Exception ignore) {}
         }
     }
+
 
 
 
@@ -213,4 +245,17 @@ public class BookingService {
     private double round2(double x) {
         return Math.round(x * 100.0) / 100.0;
     }
+
+    public String getFullBookingDescription(int bookingId) {
+        try {
+            if (bookingId <= 0) return "BookingId must be positive.";
+            return repo.getFullBookingDescription(bookingId);
+        } catch (Exception e) {
+            return "Error: " + e.getMessage();
+        }
+    }
+
+
+
+
 }
