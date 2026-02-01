@@ -29,3 +29,8 @@ bin/
 .DS_Store
 
 .idea/
+target/
+*.class
+/target/
+*.class
+ echo "target/" >> .gitignore

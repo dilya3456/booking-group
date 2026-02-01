@@ -83,7 +83,7 @@ public class ReportRepository {
         return queryToString(sql, "Average Stay by Hotel City");
     }
 
-    // helper: executes any query and formats output
+
     private String queryToString(String sql, String title) {
         StringBuilder sb = new StringBuilder();
         sb.append("\n========== ").append(title).append(" ==========\n");

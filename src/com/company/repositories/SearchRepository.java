@@ -76,6 +76,7 @@ public class SearchRepository implements ISearchRepository {
 
         List<Object> params = new ArrayList<>();
 
+
         if (fromCity != null && !fromCity.isEmpty()) {
             sql.append("AND f.from_city = ? ");
             params.add(fromCity);
@@ -101,6 +102,7 @@ public class SearchRepository implements ISearchRepository {
         } else if ("2".equals(type)) {
             sql.append("AND f.class_type = 'BUSINESS' ");
         }
+
 
         if ("1".equals(sort)) {
             sql.append("ORDER BY f.base_price ASC ");

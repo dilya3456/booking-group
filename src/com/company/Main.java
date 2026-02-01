@@ -1,52 +1,74 @@
 package com.company;
 
-import com.company.controllers.SearchController;
-import com.company.controllers.UserController;
-import com.company.controllers.interfaces.ISearchController;
-import com.company.controllers.interfaces.IUserController;
+import com.company.controllers.*;
+import com.company.controllers.interfaces.*;
+
 import com.company.data.PostgresDB;
 import com.company.data.interfaces.IDB;
-import com.company.repositories.SearchRepository;
-import com.company.repositories.UserRepository;
-import com.company.repositories.interfaces.ISearchRepository;
-import com.company.repositories.interfaces.IUserRepository;
 
+import com.company.repositories.*;
+import com.company.repositories.interfaces.*;
 
-import com.company.controllers.CancellationController;
-import com.company.services.CancellationService;
-
-
-import com.company.controllers.BookingController;
-import com.company.repositories.BookingRepository;
-import com.company.services.BookingService;
-import com.company.services.PriceCalculatorService;
+import com.company.services.*;
 
 public class Main {
     public static void main(String[] args) {
 
+        IDB db = PostgresDB.getInstance(
+                "jdbc:postgresql://localhost:5432",
+                "postgres",
+                "0000",
+                "somedb"
+        );
 
-        IDB db = new PostgresDB("jdbc:postgresql://localhost:5432", "postgres", "0000", "somedb");
 
 
         IUserRepository userRepo = new UserRepository(db);
         IUserController userController = new UserController(userRepo);
 
 
-        BookingRepository bookingRepo = new BookingRepository(db);
+        IBookingRepository bookingRepo = new BookingRepository(db);
         PriceCalculatorService priceCalc = new PriceCalculatorService();
         BookingService bookingService = new BookingService(bookingRepo, priceCalc);
-        BookingController bookingController = new BookingController(bookingService);
+        IBookingController bookingController = new BookingController(bookingService);
 
 
         CancellationService cancellationService = new CancellationService(db);
-        CancellationController cancellationController = new CancellationController(cancellationService);
+        ICancellationController cancellationController = new CancellationController(cancellationService);
 
 
         ISearchRepository searchRepo = new SearchRepository(db);
         ISearchController searchController = new SearchController(searchRepo);
 
 
-        MyApplication app = new MyApplication(userController, bookingController, cancellationController, searchController);
+        IAuthRepository authRepo = new AuthRepository(db);
+        AuthService authService = new AuthService(authRepo);
+        AuthController authController = new AuthController(authService);
+
+
+        ReportRepository reportRepo = new ReportRepository(db);
+        IReportController reportController = new ReportController(reportRepo);
+
+
+        IAdminRepository adminRepo = new AdminRepository(db);
+        AdminService adminService = new AdminService(adminRepo);
+        IAdminController adminController = new AdminController(adminService);
+
+
+        IPromoController promoController = null;
+
+
+        MyApplication app = new MyApplication(
+                userController,
+                bookingController,
+                cancellationController,
+                searchController,
+                authController,
+                reportController,
+                adminController,
+                promoController
+        );
+
         app.start();
 
         db.close();
