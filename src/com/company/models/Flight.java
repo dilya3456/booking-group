@@ -5,6 +5,7 @@ import java.util.Date;
 public class Flight {
     private int id;
     private int airlineId;
+    private String airlineTitle;
     private String flightCode;
     private String fromCity;
     private String toCity;
@@ -27,12 +28,30 @@ public class Flight {
         this.availableSeats = availableSeats;
     }
 
+    public Flight(int id, int airlineId, String airlineTitle, String flightCode, String fromCity, String toCity, Date departureTime, Date arrivalTime, int basePrice, String classType, int availableSeats) {
+        this.id = id;
+        this.airlineId = airlineId;
+        this.airlineTitle = airlineTitle;
+        this.flightCode = flightCode;
+        this.fromCity = fromCity;
+        this.toCity = toCity;
+        this.departureTime = departureTime;
+        this.arrivalTime = arrivalTime;
+        this.basePrice = basePrice;
+        this.classType = classType;
+        this.availableSeats = availableSeats;
+    }
+
     public int getId() {
         return id;
     }
 
     public int getAirlineId() {
         return airlineId;
+    }
+
+    public String getAirlineTitle() {
+        return airlineTitle;
     }
 
     public String getFlightCode() {
@@ -72,6 +91,7 @@ public class Flight {
         return "Flight{" +
                 "id=" + id +
                 ", airlineId=" + airlineId +
+                ", airlineTitle=" + airlineTitle +
                 ", flightCode='" + flightCode + '\'' +
                 ", fromCity='" + fromCity + '\'' +
                 ", toCity='" + toCity + '\'' +

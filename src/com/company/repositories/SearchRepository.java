@@ -67,45 +67,45 @@ public class SearchRepository implements ISearchRepository {
         List<Flight> flights = new ArrayList<>();
 
         StringBuilder sql = new StringBuilder(
-                "SELECT id, airline_id, flight_code, from_city, to_city, " +
-                        "departure_time, arrival_time, base_price, class_type, available_seats " +
-                        "FROM flights WHERE 1=1 "
+                "SELECT f.id as id,f.airline_id as airline_id, f.flight_code as flight_code, f.from_city as from_city, f.to_city as to_city, " +
+                        "f.departure_time as departure_time, f.arrival_time as arrival_time, " +
+                        "f.base_price as base_price, f.class_type as class_type, f.available_seats as available_seats, " +
+                        "a.name as name, a.country as country " +
+                        "FROM flights f JOIN airlines a ON f.airline_id = a.id WHERE 1=1 "
         );
 
         List<Object> params = new ArrayList<>();
 
-        // ---- фильтры ----
         if (fromCity != null && !fromCity.isEmpty()) {
-            sql.append("AND from_city = ? ");
+            sql.append("AND f.from_city = ? ");
             params.add(fromCity);
         }
 
         if (toCity != null && !toCity.isEmpty()) {
-            sql.append("AND to_city = ? ");
+            sql.append("AND f.to_city = ? ");
             params.add(toCity);
         }
 
         if (fromDate != null && !fromDate.equals("-") && !fromDate.isEmpty()) {
-            sql.append("AND departure_time >= ? 00:00:00");
+            sql.append("AND f.departure_time >= ? 00:00:00");
             params.add(Date.valueOf(fromDate));
         }
 
         if (toDate != null && !toDate.equals("-") && !toDate.isEmpty()) {
-            sql.append("AND departure_time <= ? 23:59:59");
+            sql.append("AND f.departure_time <= ? 23:59:59");
             params.add(Date.valueOf(toDate));
         }
 
         if ("1".equals(type)) {
-            sql.append("AND class_type = 'ECONOMY' ");
+            sql.append("AND f.class_type = 'ECONOMY' ");
         } else if ("2".equals(type)) {
-            sql.append("AND class_type = 'BUSINESS' ");
+            sql.append("AND f.class_type = 'BUSINESS' ");
         }
 
-        // ---- сортировка ----
         if ("1".equals(sort)) {
-            sql.append("ORDER BY base_price ASC ");
+            sql.append("ORDER BY f.base_price ASC ");
         } else if ("2".equals(sort)) {
-            sql.append("ORDER BY departure_time ASC ");
+            sql.append("ORDER BY f.departure_time ASC ");
         }
 
         try (Connection con = db.getConnection();
@@ -121,6 +121,7 @@ public class SearchRepository implements ISearchRepository {
                 flights.add(new Flight(
                         rs.getInt("id"),
                         rs.getInt("airline_id"),
+                        rs.getString("name") + " (" + rs.getString("country") + ")",
                         rs.getString("flight_code"),
                         rs.getString("from_city"),
                         rs.getString("to_city"),
@@ -171,7 +172,6 @@ public class SearchRepository implements ISearchRepository {
 
         List<Object> params = new ArrayList<>();
 
-        // ---- фильтры ----
         if (city != null && !city.isEmpty()) {
             sql.append("AND city = ? ");
             params.add(city);
@@ -187,7 +187,6 @@ public class SearchRepository implements ISearchRepository {
             params.add(maxPrice);
         }
 
-        // ---- сортировка ----
         if ("1".equals(sort)) {
             sql.append("ORDER BY price_per_night ASC ");
         } else if ("2".equals(sort)) {
@@ -197,7 +196,6 @@ public class SearchRepository implements ISearchRepository {
         try (Connection con = db.getConnection();
              PreparedStatement st = con.prepareStatement(sql.toString())) {
 
-            // Устанавливаем значения фильтров
             for (int i = 0; i < params.size(); i++) {
                 st.setObject(i + 1, params.get(i));
             }
