@@ -56,4 +56,31 @@ public class AdminService {
             return "Revenue reports failed: " + e.getMessage();
         }
     }
+
+    public String listCategories() {
+        try {
+            return repo.listCategories();
+        } catch (Exception e) {
+            return "Error: " + e.getMessage();
+        }
+    }
+
+    public String createCategory(String name) {
+        try {
+            int id = repo.createCategory(name);
+            return "Category created. ID=" + id;
+        } catch (Exception e) {
+            return "Error: " + e.getMessage();
+        }
+    }
+
+    public String setHotelCategory(int hotelId, int categoryId) {
+        try {
+            repo.setHotelCategory(hotelId, categoryId);
+            return "Hotel category updated.";
+        } catch (Exception e) {
+            return "Error: " + e.getMessage();
+        }
+    }
+
 }

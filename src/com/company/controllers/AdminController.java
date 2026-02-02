@@ -50,4 +50,19 @@ public class AdminController implements IAdminController {
     public String revenueReports() {
         return service.revenueReports();
     }
+    @Override
+    public String listCategories() {
+        return service.listCategories();
+    }
+
+    @Override
+    public String createCategory(String name) {
+        return service.createCategory(name);
+    }
+
+    @Override
+    public String setHotelCategory(int hotelId, int categoryId) {
+        return service.setHotelCategory(hotelId, categoryId);
+    }
+
 }
