@@ -108,7 +108,6 @@ public class MyApplication {
             System.out.println("3) 📝 Register (creates USER)");
             System.out.println("0) ❌ Exit");
             System.out.print("👉 Choose: ");
-
             int choice = readInt();
             switch (choice) {
                 case 1 -> loginAsUser();
@@ -134,7 +133,7 @@ public class MyApplication {
         }
 
         currentUserId = id;
-        currentUserRole = "MANAGER"; // обычный пользователь
+        currentUserRole = "USER";
         System.out.println(c("✅ Logged in as USER | id=" + currentUserId, ANSI_GREEN));
     }
 
@@ -163,6 +162,12 @@ public class MyApplication {
         currentUserId = id;
         currentUserRole = "ADMIN";
         System.out.println(c("✅ Logged in as ADMIN | id=" + currentUserId, ANSI_GREEN));
+
+        adminMenu();
+
+
+        return;
+
     }
 
     private void registerFlow() {
@@ -180,7 +185,7 @@ public class MyApplication {
             Integer id = authController.login(username, password);
             if (id != null) {
                 currentUserId = id;
-                currentUserRole = "MANAGER";
+                currentUserRole = "USER";
                 System.out.println(c("✅ Auto-login as USER | id=" + currentUserId, ANSI_GREEN));
             }
         }
@@ -217,7 +222,6 @@ public class MyApplication {
             System.out.println("9) 🚪 Logout");
             System.out.println("0) ❌ Exit");
             System.out.print("👉 Choose: ");
-
             int choice = readInt();
             switch (choice) {
                 case 1 -> usersMenu();
@@ -242,7 +246,7 @@ public class MyApplication {
                     else System.out.println(c("⛔ Access denied.", ANSI_RED));
                 }
                 case 11 -> {
-                    if (!("ADMIN".equals(currentUserRole) || "MANAGER".equals(currentUserRole))) {
+                    if (!"ADMIN".equals(currentUserRole)) {
                         System.out.println(c("⛔ Access denied.", ANSI_RED));
                         break;
                     }
@@ -316,7 +320,6 @@ public class MyApplication {
             System.out.println("4) 🧾 Booking details");
             System.out.println("0) 🔙 Back");
             System.out.print("👉 Choose: ");
-
             int choice = readInt();
             switch (choice) {
                 case 1 -> System.out.println(bookingController.listPassengers(50));
@@ -425,7 +428,6 @@ public class MyApplication {
         System.out.println(bookingController.listFlights(30));
         System.out.print("✈️ Flight id: ");
         int flightId = readInt();
-
         System.out.println("\n" + c("4️⃣ Nights", ANSI_BLUE));
         System.out.print("🌙 Nights (1..30): ");
         int nights = readIntInRange(1, 30);
@@ -537,7 +539,6 @@ public class MyApplication {
 
         System.out.print("⬇️ Sort (1-CHEAPEST, 2-HIGHEST STARS): ");
         String sort = readLine();
-
         System.out.println("\n" + c("✅ RESULT:", ANSI_GREEN));
         System.out.println(searchController.getHotelsByFilter(city, minStars, maxPrice, sort));
     }
@@ -627,9 +628,13 @@ public class MyApplication {
             System.out.println("3) ➕ Add flight");
             System.out.println("4) 📋 View all bookings");
             System.out.println("5) 📊 Revenue reports");
+
+            System.out.println("6) 📂 List categories");
+            System.out.println("7) ➕ Create category");
+            System.out.println("8) 🏨 Set hotel category");
+
             System.out.println("0) 🔙 Back");
             System.out.print("👉 Choose: ");
-
             int choice = readInt();
             switch (choice) {
                 case 1 -> {
@@ -679,11 +684,29 @@ public class MyApplication {
                 }
                 case 4 -> System.out.println(adminController.listAllBookings());
                 case 5 -> System.out.println(adminController.revenueReports());
+
+                case 6 -> System.out.println(adminController.listCategories());
+
+                case 7 -> {
+                    System.out.print("📂 Category name: ");
+                    String name = readLine();
+                    System.out.println(adminController.createCategory(name));
+                }
+
+                case 8 -> {
+                    System.out.print("🏨 Hotel id: ");
+                    int hotelId = readInt();
+                    System.out.print("📂 Category id: ");
+                    int categoryId = readInt();
+                    System.out.println(adminController.setHotelCategory(hotelId, categoryId));
+                }
+
                 case 0 -> { return; }
-                default -> System.out.println(c("⚠️ Enter 0..5", ANSI_YELLOW));
+                default -> System.out.println(c("⚠️ Enter 0..8", ANSI_YELLOW));
             }
         }
     }
+
 
 
 
@@ -706,7 +729,6 @@ public class MyApplication {
             System.out.print("💺 Enter " + expectedCount + " seat codes (A1,B2,F30): ");
             String s = readLine().toUpperCase().replace(" ", "");
             if (s.isEmpty()) continue;
-
             String[] parts = s.split(",");
             if (parts.length != expectedCount) {
                 System.out.println(c("⚠️ You must enter exactly " + expectedCount + " seats.", ANSI_YELLOW));

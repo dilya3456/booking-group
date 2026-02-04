@@ -16,4 +16,10 @@ public interface IAdminRepository {
     String listAllBookings() throws SQLException;
 
     String revenueReports() throws SQLException;
+    int createCategory(String name) throws Exception;
+
+    String listCategories() throws Exception;
+
+    void setHotelCategory(int hotelId, int categoryId) throws Exception;
+
 }

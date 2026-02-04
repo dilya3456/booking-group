@@ -4,9 +4,7 @@ import com.company.controllers.interfaces.ISearchController;
 import com.company.models.Flight;
 import com.company.models.Hotel;
 import com.company.repositories.interfaces.ISearchRepository;
-import com.company.services.BookingService;
 
-import java.util.Date;
 import java.util.List;
 
 public class SearchController implements ISearchController {

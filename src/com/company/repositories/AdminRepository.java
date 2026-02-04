@@ -1,5 +1,4 @@
-
-        package com.company.repositories;
+package com.company.repositories;
 
 import com.company.data.interfaces.IDB;
 import com.company.repositories.interfaces.IAdminRepository;
@@ -113,9 +112,7 @@ public class AdminRepository implements IAdminRepository {
                         .append(" | total=").append(rs.getBigDecimal("total_price"))
                         .append(" | ").append(rs.getTimestamp("created_at"))
                         .
-
-
-                append("\n");
+                        append("\n");
             }
         }
         return sb.toString();
@@ -140,4 +137,51 @@ public class AdminRepository implements IAdminRepository {
                     + "\nRevenue: " + rs.getBigDecimal("total_revenue");
         }
     }
+    @Override
+    public int createCategory(String name) throws Exception {
+        String sql = "INSERT INTO categories(name) VALUES (?) RETURNING id";
+        try (Connection con = db.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, name.trim().toUpperCase());
+
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getInt(1);
+            }
+        }
+    }
+
+    @Override
+    public String listCategories() throws Exception {
+        String sql = "SELECT id, name FROM categories ORDER BY id";
+        StringBuilder sb = new StringBuilder();
+
+        try (Connection con = db.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                sb.append("ID=").append(rs.getInt("id"))
+                        .append(" | ").append(rs.getString("name"))
+                        .append("\n");
+            }
+        }
+
+        return sb.length() == 0 ? "No categories." : sb.toString();
+    }
+
+    @Override
+    public void setHotelCategory(int hotelId, int categoryId) throws Exception {
+        String sql = "UPDATE hotels SET category_id = ? WHERE id = ?";
+
+        try (Connection con = db.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, categoryId);
+            ps.setInt(2, hotelId);
+            ps.executeUpdate();
+        }
+    }
+
 }

@@ -12,4 +12,11 @@ public interface IAdminController {
     String listAllBookings();
 
     String revenueReports();
+
+    String listCategories();
+
+    String createCategory(String name);
+
+    String setHotelCategory(int hotelId, int categoryId);
+
 }

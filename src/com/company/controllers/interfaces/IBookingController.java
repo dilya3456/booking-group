@@ -24,4 +24,3 @@ public interface IBookingController {
     String getFullBookingDescription(int bookingId);
 
 }
-

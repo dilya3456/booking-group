@@ -103,9 +103,7 @@ public class BookingRepository implements IBookingRepository {
         try (Connection con = db.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
 
-            ps.setInt(1, limit);
-
-            try (ResultSet rs = ps.executeQuery()) {
+            ps.setInt(1, limit);try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     sb.append("ID=").append(rs.getInt("id"))
                             .append(" | ").append(rs.getString("full_name"))
@@ -215,9 +213,7 @@ public class BookingRepository implements IBookingRepository {
                 return rs.getInt("id");
             }
         }
-    }
-
-    @Override
+    }@Override
     public int createGroupBooking(Connection con,
                                   List<Integer> passengerIds,
                                   int flightId,
@@ -323,9 +319,7 @@ public class BookingRepository implements IBookingRepository {
             ps.setInt(2, flightId);
             ps.setInt(3, hotelId);
             ps.setInt(4, nights);
-            ps.setBigDecimal(5, BigDecimal.valueOf(totalPrice));
-
-            if (createdByUserId == null) ps.setNull(6, Types.INTEGER);
+            ps.setBigDecimal(5, BigDecimal.valueOf(totalPrice));if (createdByUserId == null) ps.setNull(6, Types.INTEGER);
             else ps.setInt(6, createdByUserId);
 
             try (ResultSet rs = ps.executeQuery()) {
@@ -425,9 +419,7 @@ public class BookingRepository implements IBookingRepository {
                 int nights = rs.getInt("nights");
 
                 double flightBase = rs.getBigDecimal("base_price").doubleValue();
-                double hotelNight = rs.getBigDecimal("price_per_night").doubleValue();
-
-                TravelersInfo tinfo = fetchTravelersInfo(con, bookingId);
+                double hotelNight = rs.getBigDecimal("price_per_night").doubleValue();TravelersInfo tinfo = fetchTravelersInfo(con, bookingId);
 
                 double allAdultsFlight = flightBase * tinfo.count;
                 double discountedFlight = flightBase * tinfo.flightCoefSum;
@@ -504,9 +496,7 @@ public class BookingRepository implements IBookingRepository {
             }
             ps.executeBatch();
         }
-    }
-
-    private void decreaseSeatBy(Connection con, int flightId, int count) throws SQLException {
+    }private void decreaseSeatBy(Connection con, int flightId, int count) throws SQLException {
         String sql = "UPDATE flights SET available_seats = available_seats - ? WHERE id = ? AND available_seats >= ?";
         try (PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, count);
@@ -616,9 +606,7 @@ public class BookingRepository implements IBookingRepository {
                     }
                 }
             }
-        }
-
-        StringBuilder sb = new StringBuilder();
+        }StringBuilder sb = new StringBuilder();
         sb.append("\n--- SEAT SELECTION ---\n");
         sb.append("Seat map (XX = occupied)\n\n");
         sb.append("    A   B   C   |   D   E   F\n");
@@ -728,9 +716,7 @@ public class BookingRepository implements IBookingRepository {
     }
     @Override
     public void insertBookingSeats(Connection con, int bookingId, List<String> seatCodes) throws SQLException {
-        String sql = "INSERT INTO booking_seats(booking_id, seat_code) VALUES (?, ?)";
-
-        try (PreparedStatement ps = con.prepareStatement(sql)) {
+        String sql = "INSERT INTO booking_seats(booking_id, seat_code) VALUES (?, ?)";try (PreparedStatement ps = con.prepareStatement(sql)) {
             for (String seat : seatCodes) {
                 ps.setInt(1, bookingId);
                 ps.setString(2, seat);
@@ -835,9 +821,7 @@ public class BookingRepository implements IBookingRepository {
                 out.append("Booking #").append(rs.getInt("booking_id")).append("\n");
                 out.append("Status: ").append(rs.getString("status")).append("\n");
                 out.append("Created at: ").append(rs.getTimestamp("created_at")).append("\n");
-                out.append("Main passenger: ").append(rs.getString("main_passenger")).append("\n\n");
-
-                out.append("--- FLIGHT ---\n");
+                out.append("Main passenger: ").append(rs.getString("main_passenger")).append("\n\n");out.append("--- FLIGHT ---\n");
                 out.append("Code: ").append(rs.getString("flight_code")).append("\n");
                 out.append("Route: ").append(rs.getString("from_city")).append(" -> ").append(rs.getString("to_city")).append("\n");
                 out.append("Class: ").append(rs.getString("class_type")).append("\n");
